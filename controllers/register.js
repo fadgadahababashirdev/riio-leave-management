@@ -47,11 +47,23 @@ const users = async (req, res) => {
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }
-}; 
+};
 
-// get single user  
+// get single user
+const user = async (req, res) => {
+  try {
+    const user = req.user;
+    const verifyUser = await Account.findOne({ where: { id: user } });
+    if (!verifyUser) {
+      return res.status(400).json({ status: 'user does not exisist' });
+    }
+    return res.status(200).json({ status: 'success', user: user });
+  } catch (error) {
+    res.status(500).json({ status: 'failed', message: error.message });
+  }
+};
 
-
+// get single user
 
 // update the user
 const updateUser = async (req, res) => {
@@ -89,4 +101,35 @@ const updateUser = async (req, res) => {
   }
 };
 
-module.exports = { register, updateUser, users };
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const findUSer = await Account.findByPk(id);
+    if (!findUSer) {
+      return res
+        .status(400)
+        .json({ status: 'failed', message: 'id not found' });
+    }
+
+    if (!id) {
+      return res
+        .status(404)
+        .json({ status: 'failed', message: 'id not found' });
+    }
+    if (!findUSer) {
+      return res
+        .status(400)
+        .json({ status: 'failed', message: 'user does not exisist' });
+    }
+
+    await Account.destroy({ where: { id: id } });
+    res
+      .status(200)
+      .json({ status: 'Failed', message: 'user deleted successfully' });
+  } catch (error) {
+    console.log('The error is ', error);
+    res.status(500).json({ status: 'failed', message: error.message });
+  }
+};
+
+module.exports = { register, updateUser, users, user, deleteUser };

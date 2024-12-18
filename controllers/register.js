@@ -1,11 +1,16 @@
 const Account = require('../models/account');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+require('dotenv').config();
 // register a new user
 
 const register = async (req, res) => {
   try {
-    const { email, username, password, role } = req.body;
-    const hashPassword = await bcrypt.hash(password, 10);
+    const { email, username, role } = req.body;
+    const token = crypto.randomBytes(32).toString('hex');
+    const expireToken = Date.now() + 3600000;
+
     const user = await Account.findOne({
       where: { email: email },
     });
@@ -20,11 +25,32 @@ const register = async (req, res) => {
       username,
       password: hashPassword,
       role,
+      token: token,
+      tokenexpiresIn: expireToken,
     });
+
+    const transport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        pass: process.env.APP_PASS,
+        user: process.env.APP_USER,
+      },
+    });
+    const mailOptions = {
+      from: process.env.APP_USER,
+      to: email,
+      subject: 'Activation account',
+      text: `please click this link below to set your password for your accout to be activated http://localhost:2001/activate-account?token=${token}`,
+    };
+    transport.sendMail(mailOptions);
 
     res
       .status(201)
-      .json({ status: 'success', message: 'account registered successfully' });
+      .json({
+        status: 'success',
+        message:
+          'account registered successfully , and an email has been sent to set password',
+      });
   } catch (error) {
     res.status(500).json({ status: 'Failed', message: error.message });
   }
@@ -68,7 +94,7 @@ const user = async (req, res) => {
 // update the user
 const updateUser = async (req, res) => {
   try {
-    const { username, password, status, role } = req.body;
+    const { username, status, role } = req.body;
     const image = req.file ? req.file.path : null;
     const { id } = req.params;
     if (!id) {
@@ -85,7 +111,6 @@ const updateUser = async (req, res) => {
     }
 
     const updatingData = {
-      password: password || user.password,
       username: username || user.username,
       role: role || user.role,
       image: image || user.image,

@@ -11,6 +11,8 @@ const authorization = require('../controllers/authorization');
 const router = express.Router();
 const upload = require('../helpers/multer');
 const createPassword = require('../controllers/create-password');
+const forgotPassword = require('../controllers/forgot-password');
+const resetPassword = require('../controllers/reset-password');
 
 router.post('/register', register);
 // login
@@ -26,4 +28,7 @@ router.delete('/user/:id', authorization, deleteUser);
 
 //create password
 router.post('/create-password', createPassword);
+// forgot password 
+router.post("/forgot-password" , forgotPassword)
+router.post("/reset-Password" , resetPassword)
 module.exports = router;

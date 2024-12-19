@@ -23,7 +23,7 @@ module.exports = {
       },
       password: {
         type: Sequelize.STRING ,
-        allowNull:false
+        allowNull:true
       },
       image: {
         type: Sequelize.STRING ,
@@ -47,7 +47,7 @@ module.exports = {
         allowNull:true
       } ,
       resettokenexpires:{
-        type:Sequelize.STRING ,
+        type:Sequelize.BIGINT ,
         allowNull:true
       }
       

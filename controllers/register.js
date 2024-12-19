@@ -1,5 +1,5 @@
 const Account = require('../models/account');
-const bcrypt = require('bcryptjs');
+
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 require('dotenv').config();
@@ -7,9 +7,10 @@ require('dotenv').config();
 
 const register = async (req, res) => {
   try {
-    const { email, username, role } = req.body;
-    const token = crypto.randomBytes(32).toString('hex');
-    const expireToken = Date.now() + 3600000;
+    const { email, username, role, status } = req.body;
+    console.log('The body is ', req.body);
+    const resettoken = crypto.randomBytes(32).toString('hex');
+    const resettokenexpires = Date.now() + 3600000;
 
     const user = await Account.findOne({
       where: { email: email },
@@ -23,10 +24,10 @@ const register = async (req, res) => {
     await Account.create({
       email,
       username,
-      password: hashPassword,
       role,
-      token: token,
-      tokenexpiresIn: expireToken,
+      status,
+      resettoken,
+      resettokenexpires,
     });
 
     const transport = nodemailer.createTransport({
@@ -39,18 +40,16 @@ const register = async (req, res) => {
     const mailOptions = {
       from: process.env.APP_USER,
       to: email,
-      subject: 'Activation account',
-      text: `please click this link below to set your password for your accout to be activated http://localhost:2001/activate-account?token=${token}`,
+      subject: 'Activating account',
+      text: `please click this link below to set your password for your accout to be activated http://localhost:2001/activate-account?token=${resettoken}`,
     };
     transport.sendMail(mailOptions);
 
-    res
-      .status(201)
-      .json({
-        status: 'success',
-        message:
-          'account registered successfully , and an email has been sent to set password',
-      });
+    res.status(201).json({
+      status: 'success',
+      message:
+        'account registered successfully , and an email has been sent to set password',
+    });
   } catch (error) {
     res.status(500).json({ status: 'Failed', message: error.message });
   }

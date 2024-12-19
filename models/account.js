@@ -23,7 +23,7 @@ const Account = sequelize.define(
     },
     password: {
       type: Sequelize.STRING,
-      allowNull: false,
+      allowNull:true,
     },
     image: {
       type: Sequelize.STRING,
@@ -47,7 +47,7 @@ const Account = sequelize.define(
       allowNull: true,
     },
     resettokenexpires: {
-      type: Sequelize.STRING,
+      type: Sequelize.BIGINT,
       allowNull: true,
     },
   },

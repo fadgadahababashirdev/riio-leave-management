@@ -10,6 +10,7 @@ const login = require('../controllers/login');
 const authorization = require('../controllers/authorization');
 const router = express.Router();
 const upload = require('../helpers/multer');
+const createPassword = require('../controllers/create-password');
 
 router.post('/register', register);
 // login
@@ -21,5 +22,8 @@ router.put('/update/:id', authorization, upload.single('image'), updateUser);
 // getting single user
 router.get('/user/:id', authorization, user);
 //
-router.delete("/user/:id" , authorization ,deleteUser);
+router.delete('/user/:id', authorization, deleteUser);
+
+//create password
+router.post('/create-password', createPassword);
 module.exports = router;

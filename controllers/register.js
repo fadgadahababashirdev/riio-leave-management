@@ -61,13 +61,33 @@ const users = async (req, res) => {
     const user = req.user;
     const verifyUser = await Account.findOne({ where: { id: user } });
     if (!verifyUser) {
-      return res.status(400).json({ status: 'user does not exisist' });
+      return res.status(400).json({ status: 'user does not exist' });
     }
+
     if (verifyUser.role === 'admin') {
-      const users = await Account.findAll({
+      const { page = 1 } = req.query;
+      const limit = 50;
+      const offset = (page - 1) * limit;
+
+      const { rows: users, count: totalUsers } = await Account.findAndCountAll({
         order: [['createdAt', 'DESC']],
+        limit,
+        offset,
       });
-      return res.status(200).json({ status: 'success', users: users });
+
+      // Calculate total pages
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      return res.status(200).json({
+        status: 'success',
+        users,
+        pagination: {
+          totalUsers,
+          totalPages,
+          currentPage: parseInt(page),
+          pageSize: limit,
+        },
+      });
     }
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });

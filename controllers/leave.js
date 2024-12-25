@@ -52,6 +52,9 @@ const askLeave = async (req, res) => {
       message: 'Leave request sent',
       data: {
         leaveDays,
+        leavename,
+        leavestart,
+        leaveend,
         returnDate,
       },
     });

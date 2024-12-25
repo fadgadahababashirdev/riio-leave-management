@@ -51,6 +51,7 @@ const register = async (req, res) => {
         'account registered successfully , and an email has been sent to set password',
     });
   } catch (error) {
+    console.log("the error is" , error)
     res.status(500).json({ status: 'Failed', message: error.message });
   }
 };

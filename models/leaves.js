@@ -1,5 +1,5 @@
-const { Sequelize } = require("sequelize");
-const sequelize = require("../config/database");
+const { Sequelize } = require('sequelize');
+const sequelize = require('../config/database');
 
 const Leaves = sequelize.define('leaves', {
   id: {
@@ -17,6 +17,9 @@ const Leaves = sequelize.define('leaves', {
   leaveend: {
     type: Sequelize.DATE,
   },
+  // userId: {
+  //   type: Sequelize.INTEGER,
+  // },
   leavedays: {
     type: Sequelize.INTEGER,
   },
@@ -33,9 +36,27 @@ const Leaves = sequelize.define('leaves', {
     allowNull: false,
     type: Sequelize.DATE,
   },
+  status: {
+    type: Sequelize.STRING,
+    defaultValue: 'pending',
+  },
+  userId:{
+    type:Sequelize.INTEGER ,
+    references:{
+      model:"accounts" ,
+      key:"id"
+    }
+  } ,
   updatedAt: {
     allowNull: false,
     type: Sequelize.DATE,
   },
-}); 
-module.exports = Leaves
+} , {tableName:"leaves"});
+
+// Leaves.associate = (models) => {
+//   Leaves.belongsTo(models.Account, {
+//     foreignKey: 'userId',
+//     as: 'user',
+//   });
+// };
+module.exports = Leaves;

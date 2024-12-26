@@ -53,20 +53,22 @@ module.exports = {
       remainingleavedays: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        defaultValue:0
+        defaultValue: 0,
       },
       consumeddays: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        defaultValue:0
+        defaultValue: 0,
       },
       resettokenexpires: {
         type: Sequelize.BIGINT,
         allowNull: true,
       },
-    });;
+    });
   },
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable('accounts');
-  }
+    // Drop ENUM type to clean up
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_accounts_role";');
+  },
 };

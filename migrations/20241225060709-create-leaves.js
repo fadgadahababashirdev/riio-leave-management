@@ -20,7 +20,14 @@ module.exports = {
       },
       leavedays: {
         type: Sequelize.INTEGER,
-      },
+      }, 
+      userId:{
+        type:Sequelize.INTEGER ,
+        references:{
+          model:"accounts" ,
+          key:"id"
+        }
+      } ,
       returningfromleave: {
         type: Sequelize.INTEGER,
       },
@@ -39,7 +46,8 @@ module.exports = {
         type: Sequelize.DATE,
       }, 
       status:{
-        type:Sequelize.STRING
+        type:Sequelize.STRING,
+        defaultValue:"pending"
       }
     });
   },

@@ -52,17 +52,23 @@ const Account = sequelize.define('accounts', {
   remainingleavedays: {
     type: Sequelize.INTEGER,
     allowNull: true,
-    defaultValue:0
+    defaultValue: 0,
   },
   consumeddays: {
     type: Sequelize.INTEGER,
     allowNull: true,
-    defaultValue:0
+    defaultValue: 0,
   },
   resettokenexpires: {
     type: Sequelize.BIGINT,
     allowNull: true,
   },
-});
+} ,{tableName:"accounts"});
+// Account.associate = (models)=>{
+//   Account.hasMany(models.Leaves ,{
+//     foreignKey:"userId" , 
+//     as:"leaves"
+//   })
+// }
 
 module.exports = Account;

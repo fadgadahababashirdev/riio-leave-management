@@ -2,6 +2,7 @@ const Account = require('../models/account');
 
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { Leaves } = require('../models');
 require('dotenv').config();
 // register a new user
 
@@ -51,7 +52,7 @@ const register = async (req, res) => {
         'account registered successfully , and an email has been sent to set password',
     });
   } catch (error) {
-    console.log("the error is" , error)
+    console.log('the error is', error);
     res.status(500).json({ status: 'Failed', message: error.message });
   }
 };
@@ -72,6 +73,7 @@ const users = async (req, res) => {
 
       const { rows: users, count: totalUsers } = await Account.findAndCountAll({
         order: [['createdAt', 'DESC']],
+
         limit,
         offset,
       });
@@ -89,6 +91,8 @@ const users = async (req, res) => {
           pageSize: limit,
         },
       });
+    } else {
+      return res.status(200).json({ message: [] });
     }
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });

@@ -20,16 +20,12 @@ module.exports = {
       },
       leavedays: {
         type: Sequelize.INTEGER,
-      }, 
-      userId:{
-        type:Sequelize.INTEGER ,
-        references:{
-          model:"accounts" ,
-          key:"id"
-        }
-      } ,
-      returningfromleave: {
+      },
+      userId: {
         type: Sequelize.INTEGER,
+      },
+      returningfromleave: {
+        type: Sequelize.DATE,
       },
       leavereason: {
         type: Sequelize.STRING,
@@ -44,14 +40,17 @@ module.exports = {
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE,
-      }, 
-      status:{
-        type:Sequelize.STRING,
-        defaultValue:"pending"
-      }
+      },
+      status: {
+        type: Sequelize.ENUM('pending', 'approved'),
+        defaultValue: 'pending',
+      },
     });
   },
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable('leaves');
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_leaves_status";'
+    );
   },
 };

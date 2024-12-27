@@ -24,7 +24,7 @@ const Leaves = sequelize.define('leaves', {
     type: Sequelize.INTEGER,
   },
   returningfromleave: {
-    type: Sequelize.INTEGER,
+    type: Sequelize.DATE,
   },
   leavereason: {
     type: Sequelize.STRING,
@@ -37,15 +37,13 @@ const Leaves = sequelize.define('leaves', {
     type: Sequelize.DATE,
   },
   status: {
-    type: Sequelize.STRING,
+    type: Sequelize.ENUM('pending' , 'approved'),
     defaultValue: 'pending',
   },
   userId:{
     type:Sequelize.INTEGER ,
-    references:{
-      model:"accounts" ,
-      key:"id"
-    }
+    
+  
   } ,
   updatedAt: {
     allowNull: false,

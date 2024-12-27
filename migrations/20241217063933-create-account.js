@@ -53,7 +53,7 @@ module.exports = {
       remainingleavedays: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        defaultValue: 0,
+        defaultValue: 18,
       },
       consumeddays: {
         type: Sequelize.INTEGER,

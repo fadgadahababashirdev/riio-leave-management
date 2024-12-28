@@ -19,15 +19,13 @@ const login = async (req, res) => {
         .status(404)
         .json({ status: 'Failed ', message: 'Wrong password ,try again !' });
     }
-    res
-      .status(200)
-      .json({
-        status: 'success',
-        message: 'user loged in successfully',
-        token: jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-          expiresIn: '24h',
-        }),
-      });
+    res.status(200).json({
+      status: 'success',
+      message: 'user loged in successfully',
+      token: jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+        expiresIn: '24h',
+      }),
+    });
   } catch (error) {
     res.status(500).json({ status: 'Failed', message: error.message });
   }

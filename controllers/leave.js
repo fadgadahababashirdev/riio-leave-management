@@ -3,7 +3,6 @@ const Leaves = require('../models/leaves');
 const Account = require('../models/account');
 const hd = new Holidays('RW');
 
-// Calculate leave days and determine the return date
 const calculateLeaveDays = (start, end) => {
   let leaveDays = 0;
   let currentDate = new Date(start);
@@ -99,68 +98,77 @@ const requestLeave = async (req, res) => {
   }
 };
 
-
 // Controller for approving leave
 const approveLeave = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-  
-      const leave = await Leaves.findByPk(id);
-  
-      if (!leave) {
-        return res.status(404).json({ error: 'Leave not found.' });
-      }
-  
-      if (leave.status !== 'pending') {
-        return res.status(400).json({ error: 'Leave already processed.' });
-      }
-  
-    
-      const user = await Account.findByPk(leave.userId); 
-      if (!user) {
-        return res.status(404).json({ error: 'User not found.' });
-      }
-  
-      if (leave.leavedays > user.remainingleavedays) {
-        return res
-          .status(400)
-          .json({ error: 'User does not have enough leave days.' });
-      }
-  
-    
-      user.consumeddays += leave.leavedays;
-      user.remainingleavedays -= leave.leavedays;
-      await user.save();
-  
-     
-      const returnDate = new Date(leave.leaveend);
-      returnDate.setDate(returnDate.getDate() + 1);
-  
-    
-      leave.returningfromleave = returnDate;
-      leave.status = 'approved';
-      await leave.save();
-  
-      res.status(200).json({
-        message: 'Leave approved successfully.',
-        leave: {
-          ...leave.toJSON(),
-          returningfromleave: returnDate,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'An error occurred while approving leave.' });
-    }
-  };
-  
+  try {
+    const { id } = req.params;
 
+    const leave = await Leaves.findByPk(id);
+
+    if (!leave) {
+      return res.status(404).json({ error: 'Leave not found.' });
+    }
+
+    if (leave.status !== 'pending') {
+      return res.status(400).json({ error: 'Leave already processed.' });
+    }
+
+    const user = await Account.findByPk(leave.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (leave.leavedays > user.remainingleavedays) {
+      return res
+        .status(400)
+        .json({ error: 'User does not have enough leave days.' });
+    }
+
+    user.consumeddays += leave.leavedays;
+    user.remainingleavedays -= leave.leavedays;
+    await user.save();
+
+    const returnDate = new Date(leave.leaveend);
+    returnDate.setDate(returnDate.getDate() + 1);
+
+    leave.returningfromleave = returnDate;
+    leave.status = 'approved';
+    await leave.save();
+
+    res.status(200).json({
+      message: 'Leave approved successfully.',
+      leave: {
+        ...leave.toJSON(),
+        returningfromleave: returnDate,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'An error occurred while approving leave.' });
+  }
+};
 
 const getLeaves = async (req, res) => {
   try {
-    const leaves = await Leaves.findAll();
-    res.status(200).json({ status: 'success', leaves });
+    const user = req.user;
+    const verifyUserExisist = await Account.findByPk(user);
+    if (!verifyUserExisist) {
+      return res
+        .status(404)
+        .json({ status: 'failed', message: 'user not found' });
+    }
+    if (user.role === 'admin') {
+      const leaves = await Leaves.findAll({
+        order: [['createAt', 'DESC']],
+      });
+    return  res.status(200).json({ status: 'success', leaves });
+    } else { 
+      
+      const leaves = await Leaves.findAll({where:{id:user}} ,{
+        order: [['createAt', 'DESC']],
+      }); 
+      return res.status(200).json({status:"success" , leaves})
+    }
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }

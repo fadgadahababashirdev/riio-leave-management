@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "migrate":"npx sequelize-cli db:migrate" ,
+    "migrate": "npx sequelize-cli db:migrate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js"
   },
@@ -13,7 +13,7 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^2.5.1",
+    "cloudinary": "^1.41.3",
     "crypto": "^1.0.1",
     "date-holidays": "^3.23.14",
     "dotenv": "^16.4.7",

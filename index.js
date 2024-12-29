@@ -2,9 +2,12 @@ require('dotenv').config();
 
 const express = require('express');
 const router = require('./routes/riioRoute');
+const morgan = require("morgan")
 const app = express();
+
 const PORT = process.env.APP_PORT || 1200
 app.use(express.json());
+app.use(morgan('combined'));
 
 app.listen(process.env.APP_PORT, () => console.log(`app is running on http://localhost:${PORT}`));
 // appRoute 

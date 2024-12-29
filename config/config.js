@@ -13,7 +13,7 @@ module.exports = {
     password:process.env.PRODUCTION_PASSWORD,
     database: process.env.PRODUCTION_HOST,
     host:process.env.PRODUCTION_PORT,
-    dialect: process.env.PRODUCTION_DATABASE,
+    dialect: process.env.PRODUCTION_DIALECT,
   },
   production: {
     username: 'root',

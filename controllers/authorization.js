@@ -8,7 +8,7 @@ const authorization = async (req, res, next) => {
         .status(400)
         .json({ status: 'failed', message: 'Please login first' });
     } else {
-      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      jwt.verify(token, process.env.secret , (err, decoded) => {
         if (err) {
           return res
             .status(400)

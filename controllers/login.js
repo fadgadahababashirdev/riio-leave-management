@@ -1,5 +1,6 @@
-const bcrypt = require('bcryptjs');
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
+
 const jwt = require('jsonwebtoken');
 const Account = require('../models/account');
 
@@ -22,12 +23,12 @@ const login = async (req, res) => {
     res.status(200).json({
       status: 'success',
       message: 'user loged in successfully',
-      token: jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      token: jwt.sign({ userId: user.id }, process.env.secret , {
         expiresIn: '24h',
       }),
     });
   } catch (error) {
-    res.status(500).json({ status: 'Failed', message:error.message});
+    res.status(500).json({ status: 'Failed', message: error.message });
   }
 };
 

@@ -11,9 +11,10 @@ module.exports = {
   test: {
     username: process.env.PRODUCTION_USERNAME,
     password:process.env.PRODUCTION_PASSWORD,
-    database: process.env.PRODUCTION_HOST,
-    host:process.env.PRODUCTION_PORT,
+    database: process.env.PRODUCTION_DATABASE,
+    host:process.env.PRODUCTION_HOST,
     dialect: process.env.PRODUCTION_DIALECT,
+    port:process.env.PRODUCTION_PORT
   },
   production: {
     username: 'root',

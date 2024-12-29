@@ -27,7 +27,7 @@ const login = async (req, res) => {
       }),
     });
   } catch (error) {
-    res.status(500).json({ status: 'Failed', message: error.message });
+    res.status(500).json({ status: 'Failed', message:error.message});
   }
 };
 

@@ -1,4 +1,5 @@
 {
+  
   "name": "riio-leave-management",
   "version": "1.0.0",
   "main": "index.js",
@@ -30,5 +31,8 @@
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.2"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

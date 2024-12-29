@@ -17,7 +17,12 @@ module.exports = {
     host: process.env.HOST,
     dialect: process.env.DIALECT,
     port: process.env.PORT,
-    ssl: true,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
   },
   production: {
     username: process.env.USERNAME,
@@ -26,6 +31,11 @@ module.exports = {
     host: process.env.HOST,
     dialect: process.env.DIALECT,
     port: process.env.PORT,
-    ssl: true,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
   },
 };

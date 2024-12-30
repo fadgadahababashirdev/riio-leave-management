@@ -26,7 +26,7 @@ const forgotPassword = async (req, res) => {
       from: process.env.APP_EMAIL,
       to: email,
       subject: 'Reset your password',
-      text: `Click this link to create new password https://localhost:2001/reset-password?token=${resettoken}`,
+      text: `Click this link to create new password ${process.env.FRONT_END_URL}/reset-password?token=${resettoken}`,
     };
     await Account.update(
       {resettoken: resettoken, resettokenexpires: resettokenexpires},

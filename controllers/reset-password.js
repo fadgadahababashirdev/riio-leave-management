@@ -1,6 +1,7 @@
 const Account = require('../models/account');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
+require("dotenv").config()
 const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;

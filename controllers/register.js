@@ -42,7 +42,7 @@ const register = async (req, res) => {
       from: process.env.APP_USER,
       to: email,
       subject: 'Activating account',
-      text: `please click this link below to set your password for your accout to be activated ${process.env.FRONT_END_URL}/activate-account?token=${resettoken}`,
+      text: `please click this link below to set your password for your accout to be activated ${process.env.FRONT_END_URL}/create-password?token=${resettoken}`,
     };
     transport.sendMail(mailOptions);
 

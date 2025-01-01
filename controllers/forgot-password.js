@@ -30,7 +30,7 @@ const forgotPassword = async (req, res) => {
     };
     await Account.update(
       {resettoken: resettoken, resettokenexpires: resettokenexpires},
-      { where: {} }
+      { where: {email:email}}
     );
     transport.sendMail(mailOptions);
     res.status(200).json({ status: 'success', message: 'an email has been sent to reset your password' });

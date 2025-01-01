@@ -19,7 +19,7 @@ const register = async (req, res) => {
 
     if (user) {
       return res
-        .status(404)
+        .status(400)
         .json({ status: 'Failed ', message: 'user arleady exisists' });
     }
     await Account.create({
@@ -38,11 +38,12 @@ const register = async (req, res) => {
         user: process.env.APP_USER,
       },
     });
+   
     const mailOptions = {
       from: process.env.APP_USER,
       to: email,
       subject: 'Activating account',
-      text: `please click this link below to set your password for your accout to be activated ${process.env.FRONT_END_URL}/create-password?token=${resettoken}`,
+      text: `please click this link below to set your password ${process.env.FRONT_END_URL}/create-password?token=${resettoken}`,
     };
     transport.sendMail(mailOptions);
 

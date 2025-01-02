@@ -19,7 +19,7 @@ router.post('/register', register);
 // login
 router.post('/login', login);
 // all users
-router.get('/users', authorization, users);
+router.get('/users',users);
 // update a user
 router.put('/update/:id', authorization, upload.single('image'), updateUser);
 // getting single user

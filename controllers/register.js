@@ -61,13 +61,13 @@ const register = async (req, res) => {
 // get all users
 const users = async (req, res) => {
   try {
-    // const user = req.user;
-    // const verifyUser = await Account.findOne({ where: { id: user } });
-    // if (!verifyUser) {
-    //   return res.status(400).json({ status: 'user does not exist' });
-    // }
+    const user = req.user;
+    const verifyUser = await Account.findOne({ where: { id: user } });
+    if (!verifyUser) {
+      return res.status(400).json({ status: 'user does not exist' });
+    }
 
-    // if (verifyUser.role === 'admin') {
+    if (verifyUser.role === 'admin') {
       const { page = 1 } = req.query;
       const limit = 50;
       const offset = (page - 1) * limit;
@@ -92,10 +92,9 @@ const users = async (req, res) => {
           pageSize: limit,
         },
       });
-    // }
-    //  else {
-    //   return res.status(200).json({ message: [] });
-    // }
+    } else {
+      return res.status(200).json({ message: [] });
+    }
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }
@@ -105,12 +104,18 @@ const users = async (req, res) => {
 const user = async (req, res) => {
   try {
     const {id} = req.params 
+  
     const isIdFound = await Account.findByPk(id)
     if(!isIdFound){
       return res.status(200).json({status:"failed" , message:"id not found"})
     } 
-  const user =   await Account.findOne({where:{id:id}}) 
+   if(req.user === id){
+    const user =   await Account.findOne({where:{id:id}}) 
     return res.status(200).json({status:"success" , user:user})
+   } else{
+    return res.status(400).json({status:"failed" , message:[]})
+   }
+    
   } catch (error) {
     res.status(500).json({status:"failed" , message:error.message})
   }

@@ -104,12 +104,11 @@ const users = async (req, res) => {
 const user = async (req, res) => {
   try {
     const {id} = req.params 
-    const isIdFound = await Account.findByPk(id)
+    const isIdFound = await Account.findByPk({where:{id:id}})
     if(!isIdFound){
-      return res.status(200).json({status:"failed" , message:"id not found"})
-    } 
-  const user =   await Account.findOne({where:{id:id}}) 
-    return res.status(200).json({status:"success" , user:user})
+      return res.status(400).json({status:"failed" , message:"id not found"})
+    }
+    return res.status(200).json({status:"success" , user:isIdFound})
   } catch (error) {
     res.status(500).json({status:"failed" , message:error.message})
   }

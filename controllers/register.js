@@ -108,7 +108,7 @@ const user = async (req, res) => {
     if (!verifyUser) {
       return res.status(400).json({ status: 'user does not exisist' });
     }
-    return res.status(200).json({ status: 'success', user: user });
+    return res.status(200).json({ status: 'success', user: verifyUser });
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }

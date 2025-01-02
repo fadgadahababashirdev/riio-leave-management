@@ -108,7 +108,7 @@ const user = async (req, res) => {
     if(!isIdFound){
       return res.status(400).json({status:"failed" , message:"id not found"})
     }
-    const user = await Account.findOne({where:{id:isIdFound}})
+    const user = await Account.findOne({where:{id:id}})
     return res.status(200).json({status:"success" , user:user})
   } catch (error) {
     res.status(500).json({status:"failed" , message:error.message})

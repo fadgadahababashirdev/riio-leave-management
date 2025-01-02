@@ -103,12 +103,17 @@ const users = async (req, res) => {
 // get single user
 const user = async (req, res) => {
   try {
-    const user = req.user;
-    const verifyUser = await Account.findOne({ where: { id: user } });
-    if (!verifyUser) {
+    const user = req.user; 
+    const {id} = req.params
+    const verifyId = await Account.findByPk(id);
+    const findUser = await Account.findOne({where:{id:verifyId}}) 
+    if(!verifyId){
+      return res.status(400).json({status:"failed" , message:"The id not found"})
+    }
+    if (!findUser) {
       return res.status(400).json({ status: 'user does not exisist' });
     }
-    return res.status(200).json({ status: 'success', user: verifyUser });
+    return res.status(200).json({ status: 'success', user: findUser });
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }

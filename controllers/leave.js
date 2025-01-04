@@ -3,7 +3,8 @@ const Leaves = require('../models/leaves');
 const Account = require('../models/account');
 const hd = new Holidays('RW');
 
-const calculateLeaveDays = (start, end) => {
+const calculateLeaveDays = (start, end) => { 
+
   let leaveDays = 0;
   let currentDate = new Date(start);
 
@@ -22,10 +23,10 @@ const calculateLeaveDays = (start, end) => {
   return leaveDays;
 };
 
-// Find the next valid working day after the leave period
+
 const findNextValidReturnDate = (endDate) => {
   let nextDate = new Date(endDate);
-  nextDate.setDate(nextDate.getDate() + 1); // Start checking the day after the end date
+  nextDate.setDate(nextDate.getDate() + 1); 
 
   while (true) {
     const dayOfWeek = nextDate.getDay();
@@ -39,6 +40,48 @@ const findNextValidReturnDate = (endDate) => {
     nextDate.setDate(nextDate.getDate() + 1);
   }
 };
+ 
+
+// const handel = async(req , res)=>{
+//   try {
+//     const allAdmins = await Account.findAll({where:{role:"admin"}}) 
+//     if(allAdmins > 0){
+//       return res.status(200).json({status:"success" , message:"users found" , admins:allAdmins})
+//     } else{
+//       return res.status(404).json({status:"failed" , message:"No admins found"})
+//     }
+    
+//   } catch (error) { 
+//     res.status(500).json({status:"failed" , message:error.message})
+//     console.log(error)
+//   }
+// } 
+
+const handel = async (req, res) => {
+  try {
+    // Fetch all users with the role of 'admin'
+    const allAdmins = await Account.findAll({ where: { role: "admin" } });
+
+    if (allAdmins.length > 0) { // Check if any admins were found
+      return res.status(200).json({
+        status: "success",
+        message: "Admins found",
+        admins: allAdmins,
+      });
+    } else {
+      return res.status(404).json({
+        status: "failed",
+        message: "No admins found",
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "failed",
+      message: error.message,
+    });
+    console.error(error);
+  }
+};
 
 const requestLeave = async (req, res) => {
   try {
@@ -48,7 +91,7 @@ const requestLeave = async (req, res) => {
 
     console.log('The user id is ', userId);
 
-    // Check for pending leave requests
+  
     const existingLeave = await Leaves.findOne({
       where: { userId, status: 'pending' },
     });
@@ -69,7 +112,6 @@ const requestLeave = async (req, res) => {
         .json({ error: 'Invalid leave period. No working days found.' });
     }
 
-    // Calculate the return date
     const returnDate = findNextValidReturnDate(end);
 
     const newLeave = await Leaves.create({
@@ -82,12 +124,13 @@ const requestLeave = async (req, res) => {
       userId,
       status: 'pending',
     });
+   
 
     res.status(201).json({
       message: 'Leave request submitted successfully.',
       leave: {
         ...newLeave.toJSON(),
-        returnDate, // Include the calculated return date in the response
+        returnDate,
       },
     });
   } catch (error) {
@@ -98,7 +141,6 @@ const requestLeave = async (req, res) => {
   }
 };
 
-// Controller for approving leave
 const approveLeave = async (req, res) => {
   try {
     const { id } = req.params;
@@ -173,4 +215,4 @@ const getLeaves = async (req, res) => {
     res.status(500).json({ status: 'failed', message: error.message });
   }
 };
-module.exports = { requestLeave, approveLeave, getLeaves };
+module.exports = { requestLeave, approveLeave, getLeaves  , handel};

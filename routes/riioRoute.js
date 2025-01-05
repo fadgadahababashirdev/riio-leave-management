@@ -13,7 +13,7 @@ const upload = require('../helpers/multer');
 const createPassword = require('../controllers/create-password');
 const forgotPassword = require('../controllers/forgot-password');
 const resetPassword = require('../controllers/reset-password');
-const { requestLeave, approveLeave, getLeaves, handel } = require('../controllers/leave');
+const { requestLeave, approveLeave, getLeaves} = require('../controllers/leave');
 
 router.post('/register', register);
 // login
@@ -38,6 +38,6 @@ router.post('/reset-Password', resetPassword);
  router.post("/leave" , authorization , requestLeave)
  router.put("/leave/:id" , authorization , approveLeave)
  router.get("/leave" , getLeaves) 
- router.get("/admin" , authorization , handel)
+
 
 module.exports = router;

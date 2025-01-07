@@ -45,10 +45,6 @@ const findNextValidReturnDate = (endDate) => {
 };
  
 
-
-
-
-
 const requestLeave = async (req, res) => {
   try {
     const { leavename, leavestart, leaveend, leavereason, leaveDocument } = req.body;
@@ -57,21 +53,15 @@ const requestLeave = async (req, res) => {
     if (!userId) {
       return res.status(400).json({ error: 'User not authenticated.' });
     }
-
-    console.log('The user id is ', userId);
-
     const existingLeave = await Leaves.findOne({
       where: { userId, status: 'pending' },
     });
-
     if (existingLeave) {
       return res.status(400).json({ error: 'You already have a pending leave request.' });
     }
-
     const start = new Date(leavestart);
     const end = new Date(leaveend);
     const leavedays = calculateLeaveDays(start, end);
-
     if (leavedays <= 0) {
       return res.status(400).json({ error: 'Invalid leave period. No working days found.' });
     }
@@ -80,13 +70,13 @@ const requestLeave = async (req, res) => {
 
     const newLeave = await Leaves.create({
       leavename,
-      leavestart: start,
-      leaveend: end,
+      leavestart:start,
+      leaveend:end,
       leavedays,
       leavereason,
       leaveDocument,
       userId:req.user,
-      status: 'pending',
+      status:'pending',
     });
 
     const admins = await Account.findAll({ where: { role: 'admin' } });
@@ -110,22 +100,26 @@ const requestLeave = async (req, res) => {
       return res.status(400).json({ status: 'failed', message: 'User not found' });
     }
 
-    const account = await Account.findOne({ where: { id: sendingEmail } });
+    const account = await Account.findOne({ where: {id:sendingEmail } }); 
+    console.log("The email is",account.accounts.username)
+    // console.log("The account email is" , account)
     if (!account) {
-      return res.status(400).json({ error: 'User account not found.' });
+      return res.status(400).json({error:'User account not found.'});
     }
 
     const mailOptions = {
-      from: process.env.App_USER,
+      from: account.accounts.email,
       to: adminEmails,
-      subject: `${account.firstName} ${account.lastName} requesting a leave`,
+      subject: `${account.accounts.firstName} ${account.accounts.lastName} requesting a leave`,
       text: `
-        ${account.firstName} ${account.lastName} is requesting a leave.\n
+        ${account.accounts.firstName} ${account.accounts.lastName} is requesting a leave.\n
         Leave Name: ${leavename}\n
         Reason: ${leavereason}\n
         Duration: ${leavedays} days\n
         From: ${leavestart}\n
-        To: ${leaveend}
+        To: ${leaveend} \n 
+        Returning on: ${returnDate}
+
       `,
     };
 

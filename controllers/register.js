@@ -2,7 +2,7 @@ const Account = require('../models/account');
 
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const { Leaves } = require('../models');
+
 require('dotenv').config();
 // register a new user
 

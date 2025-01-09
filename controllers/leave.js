@@ -81,27 +81,19 @@ const requestLeave = async (req, res) => {
       leavedays,
       leavereason,
       leaveDocument, 
-      returningfromleave:formattedReturnDate,
+      returningfromleave:returnDate,
       userId:req.user,
       status:'pending',
     });
-
-    const admins = await Account.findAll({ where: { role: 'admin' } });
+   
+   
+    const admins = await Account.findAll({ where: {role:'admin'}});
 
     if (!admins.length) {
       return res.status(400).json({ status: 'failed', message: 'No admins found' });
     }
 
     const adminEmails = admins.map((admin) => admin.email);
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        pass: process.env.APP_PASS,
-        user: process.env.App_USER
-     
-      },
-    });
 
     const sendingEmail = req.user;
     if (!sendingEmail) {
@@ -114,7 +106,7 @@ const requestLeave = async (req, res) => {
       return res.status(400).json({error:'User account not found.'});
     } 
 
-    console.log("The sende account is" ,account) 
+  
     const transport = nodemailer.createTransport({
       service:"gmail" ,
       auth:{
@@ -131,8 +123,8 @@ const requestLeave = async (req, res) => {
       to:adminEmails ,
       subject:"Requesting a leave",
       text:`
-      ${name} is requesting a leave\n of ${leavedays}days\n starting from ${leavestart}\nand it ends on ${leaveend} \n. 
-      If the leave is approved ${name} will return to work on ${formattedReturnDate},
+      ${name} is requesting a leave of ${leavedays} days starting from ${leavestart} and it ends on ${leaveend}. 
+      If the leave is approved ${name} will return to work on ${returnDate},
       Click this link to activate to check leave status for ${name}
       `
     } 
@@ -161,7 +153,10 @@ const requestLeave = async (req, res) => {
         return res.status(400).json({ error: 'Invalid status. Use "approved" or "rejected".' });
       }
   
-      const leave = await Leaves.findByPk(id);
+      const leave = await Leaves.findByPk(id); 
+       
+      const userAccount = await Account.findOne({where:{id:leave.userId}}) 
+     
   
       if (!leave) {
         return res.status(404).json({ error: 'Leave not found.' });
@@ -170,9 +165,11 @@ const requestLeave = async (req, res) => {
       if (leave.status !== 'pending') {
         return res.status(400).json({ error: 'Leave already processed.' });
       }
-  
+      
+   
       if (status === 'approved') {
-        const user = await Account.findByPk(leave.userId);
+        const user = await Account.findByPk(leave.userId); 
+     
         if (!user) {
           return res.status(404).json({ error: 'User not found.' });
         }
@@ -204,7 +201,7 @@ const requestLeave = async (req, res) => {
 
         const mailOptions= {
           from:process.env.APP_USER,
-          to:leave.username,
+          to:userAccount.email,
           subject:"Leave Status",
           text:"Hey your leave has been approved"
         }  
@@ -216,7 +213,9 @@ const requestLeave = async (req, res) => {
             returningfromleave: returnDate,
           },
         });
-      } else if (status === 'rejected') {
+      } else if (status === 'rejected') { 
+        const user = await Account.findByPk(leave.userId); 
+        console.log('the user in approved is ' , user.username)
         leave.status = 'rejected';
         await leave.save();
         const transport = nodemailer.createTransport({
@@ -229,7 +228,7 @@ const requestLeave = async (req, res) => {
 
         const mailOptions= {
           from:process.env.APP_USER,
-          to:leave.username,
+          to:userAccount.email,
           subject:"Leave Status",
           text:"Hey your leave has been rejected"
         }  
@@ -240,6 +239,7 @@ const requestLeave = async (req, res) => {
         });
       }
     } catch (error) {
+      console.log("there was an error")
       console.error(error);
       res.status(500).json({ error: 'An error occurred while processing the leave.' });
     }
@@ -277,28 +277,39 @@ const getLeaves = async (req, res) => {
 }; 
 
 
-const deleteYourLeave = async(req , res)=>{
+const deleteYourLeave = async (req, res) => {
   try {
-    const user = req.user 
-    const findUser = await Account.findByPk(user)  
-    if(!findUser){
-      return res.status(400).json({status:"Failed" , message:"user not found"})
-    } 
-    const {id} = req.params 
-    const verifyId = await Leaves.findByPk(id)
-    if(!verifyId){
-      return res.status(400).json({status:"failed" , message:"The id is not found"})
-    } 
-    if(user === findUser.id){
-      await Leaves.destroy({where:{id:id}}) 
-      return res.status(200).json({status:"Leave deleted successfully"})
-    }else{
-      return res.status(400).json({status:"failed" , message:"Bad request"})
+    const userId = req.user;
+    const findUser = await Account.findByPk(userId);
+    if (!findUser) {
+      return res.status(400).json({ status: "Failed", message: "User not found" });
     }
-    
+
+    const { id } = req.params;
+    const verifyLeave = await Leaves.findByPk(id);
+    if (!verifyLeave) {
+      return res.status(400).json({ status: "Failed", message: "Leave not found" });
+    }
+
+    if (verifyLeave.userId !== userId) {
+      return res.status(400).json({ status: "Failed", message: "Bad request" });
+    }
+
+    // Update the user's leave balance before deleting the leave
+    if (verifyLeave.status === 'approved') {
+      findUser.consumeddays -= verifyLeave.leavedays;
+      findUser.remainingleavedays += verifyLeave.leavedays;
+      await findUser.save();
+    }
+
+    // Delete the leave
+    await Leaves.destroy({ where: { id } });
+
+    return res.status(200).json({ status: "Success", message: "Leave deleted successfully" });
   } catch (error) {
-    console.log(error)
-    return res.status(500).json({status:"failed" , message:"error.message"})
+    console.error(error);
+    return res.status(500).json({ status: "Failed", message: error.message });
   }
-}
+};
+
 module.exports = { requestLeave, updateLeaveStatus, getLeaves , deleteYourLeave};

@@ -70,6 +70,9 @@ const requestLeave = async (req, res) => {
     }
 
     const returnDate = findNextValidReturnDate(end);
+    const realDate = new Date(returnDate) 
+    const formattedReturnDate = realDate.toISOString().split('T')[0];
+
 
     const newLeave = await Leaves.create({
       leavename,
@@ -78,7 +81,7 @@ const requestLeave = async (req, res) => {
       leavedays,
       leavereason,
       leaveDocument, 
-      returningfromleave:returnDate ,
+      returningfromleave:formattedReturnDate,
       userId:req.user,
       status:'pending',
     });
@@ -129,11 +132,10 @@ const requestLeave = async (req, res) => {
       subject:"Requesting a leave",
       text:`
       ${name} is requesting a leave\n of ${leavedays}days\n starting from ${leavestart}\nand it ends on ${leaveend} \n. 
-      If the leave is approved ${name} will return to work on ${returnDate},
+      If the leave is approved ${name} will return to work on ${formattedReturnDate},
       Click this link to activate to check leave status for ${name}
       `
     } 
-
     await transport.sendMail(mailOptions)
     return  res.status(201).json({
       message: 'Leave request submitted successfully, and the admins will check it out.',
@@ -149,72 +151,101 @@ const requestLeave = async (req, res) => {
   }
 };
 
-const approveLeave = async (req, res) => {
-  try {
-    const { id } = req.params;
 
-    const leave = await Leaves.findByPk(id);  
-   
+  const updateLeaveStatus = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body; 
+  
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Use "approved" or "rejected".' });
+      }
+  
+      const leave = await Leaves.findByPk(id);
+  
+      if (!leave) {
+        return res.status(404).json({ error: 'Leave not found.' });
+      }
+  
+      if (leave.status !== 'pending') {
+        return res.status(400).json({ error: 'Leave already processed.' });
+      }
+  
+      if (status === 'approved') {
+        const user = await Account.findByPk(leave.userId);
+        if (!user) {
+          return res.status(404).json({ error: 'User not found.' });
+        }
+  
+        if (leave.leavedays > user.remainingleavedays) {
+          return res
+            .status(400)
+            .json({ error: 'User does not have enough leave days.' });
+        }
+  
+        user.consumeddays += leave.leavedays;
+        user.remainingleavedays -= leave.leavedays;
+        await user.save();
+  
+        const returnDate = new Date(leave.leaveend);
+        returnDate.setDate(returnDate.getDate() + 1);
+  
+        leave.returningfromleave = returnDate;
+        leave.status = 'approved';
+  
+        await leave.save();
+        const transport = nodemailer.createTransport({
+          service:"gmail" , 
+          auth:{
+            user:process.env.APP_USER,
+            pass:process.env.APP_PASS
+          }
+        }) 
+
+        const mailOptions= {
+          from:process.env.APP_USER,
+          to:leave.username,
+          subject:"Leave Status",
+          text:"Hey your leave has been approved"
+        }  
+        await transport.sendMail(mailOptions)
+        return res.status(200).json({
+          message: 'Leave approved successfully, and email sent to the recipient.',
+          leave: {
+            ...leave.toJSON(),
+            returningfromleave: returnDate,
+          },
+        });
+      } else if (status === 'rejected') {
+        leave.status = 'rejected';
+        await leave.save();
+        const transport = nodemailer.createTransport({
+          service:"gmail" , 
+          auth:{
+            user:process.env.APP_USER,
+            pass:process.env.APP_PASS
+          }
+        }) 
+
+        const mailOptions= {
+          from:process.env.APP_USER,
+          to:leave.username,
+          subject:"Leave Status",
+          text:"Hey your leave has been rejected"
+        }  
+        await transport.sendMail(mailOptions)
+        return res.status(200).json({
+          message: 'Leave rejected successfully, and email sent to the recipient.',
+          leave: leave.toJSON(),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'An error occurred while processing the leave.' });
+    }
+  };
   
 
-    if (!leave) {
-      return res.status(404).json({ error: 'Leave not found.' });
-    }
-    const leaveOwner = await Account.findByPk(leave.userId) 
-    console.log("The leave owner is " , leaveOwner)
-    if (leave.status !== 'pending') {
-      return res.status(400).json({ error: 'Leave already processed.' });
-    }
-
-    const user = await Account.findByPk(leave.userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    if (leave.leavedays > user.remainingleavedays) {
-      return res
-        .status(400)
-        .json({ error: 'User does not have enough leave days.' });
-    }
-
-    user.consumeddays += leave.leavedays;
-    user.remainingleavedays -= leave.leavedays;
-    await user.save();
-
-    const returnDate = new Date(leave.leaveend);
-    returnDate.setDate(returnDate.getDate() + 1);
-
-    leave.returningfromleave = returnDate;
-    leave.status = 'approved';
-    await leave.save();
-    
-    const transporter =nodemailer.createTransport({
-      service:"gmail", 
-      auth:{
-        user:process.env.APP_USER,
-        pass:process.env.APP_PASSWORD
-      }
-    }) 
-    console.log("The leave owner email is" , leaveOwner.email) 
-    const mailOptions={ 
-      from:"RIIO ADMIN",
-      to:leaveOwner.email , 
-      subject:"Leave status" ,
-      text:`Dear ${leaveOwner.username} we wanted to let you know that your leave has been updated to a status of ${leave.status}`
-    } 
-    transporter.sendMail(mailOptions)
-   return  res.status(200).json({
-      message: 'Leave approved successfully. and email sent to the reciepient',
-      leave: {
-        ...leave.toJSON(),
-        returningfromleave: returnDate,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'An error occurred while approving leave.' });
-  }
-};
 
 const getLeaves = async (req, res) => {
   try {
@@ -270,4 +301,4 @@ const deleteYourLeave = async(req , res)=>{
     return res.status(500).json({status:"failed" , message:"error.message"})
   }
 }
-module.exports = { requestLeave, approveLeave, getLeaves , deleteYourLeave};
+module.exports = { requestLeave, updateLeaveStatus, getLeaves , deleteYourLeave};

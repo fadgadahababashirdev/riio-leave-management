@@ -37,7 +37,7 @@ const Leaves = sequelize.define('leaves', {
     type: Sequelize.DATE,
   },
   status: {
-    type: Sequelize.ENUM('pending' , 'approved'),
+    type: Sequelize.ENUM('pending','approved','rejected'),
     defaultValue: 'pending',
   },
   userId:{

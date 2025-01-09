@@ -1,9 +1,8 @@
 const Holidays = require('date-holidays');
 const Leaves = require('../models/leaves');
 const Account = require('../models/account');
-const  {createTransport } = require('nodemailer');
+const nodemailer = require("nodemailer");
 const { text } = require('express');
-const nodemailer = require("nodemailer")
 const hd = new Holidays('RW');
 require("dotenv").config()
 const calculateLeaveDays = (start, end) => { 
@@ -43,7 +42,11 @@ const findNextValidReturnDate = (endDate) => {
     nextDate.setDate(nextDate.getDate() + 1);
   }
 };
- 
+const username = "fadga"
+const capitalisedName = username.split(" ") 
+const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() +  name.slice(1).toLowerCase())
+console.log("the name is" , finalName.join(""))
+
 
 const requestLeave = async (req, res) => {
   try {
@@ -51,7 +54,7 @@ const requestLeave = async (req, res) => {
     const userId = req.user;
 
     if (!userId) {
-      return res.status(400).json({ error: 'User not authenticated.' });
+      return res.status(400).json({ error: 'User not found' });
     }
     const existingLeave = await Leaves.findOne({
       where: { userId, status: 'pending' },
@@ -74,7 +77,8 @@ const requestLeave = async (req, res) => {
       leaveend:end,
       leavedays,
       leavereason,
-      leaveDocument,
+      leaveDocument, 
+      returningfromleave:returnDate ,
       userId:req.user,
       status:'pending',
     });
@@ -90,8 +94,9 @@ const requestLeave = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.App_USER,
         pass: process.env.APP_PASS,
+        user: process.env.App_USER
+     
       },
     });
 
@@ -101,31 +106,36 @@ const requestLeave = async (req, res) => {
     }
 
     const account = await Account.findOne({ where: {id:sendingEmail } }); 
-    console.log("The email is",account.accounts.username)
     // console.log("The account email is" , account)
     if (!account) {
       return res.status(400).json({error:'User account not found.'});
-    }
+    } 
+
+    console.log("The sende account is" ,account) 
+    const transport = nodemailer.createTransport({
+      service:"gmail" ,
+      auth:{
+        user:process.env.APP_USER ,
+        pass:process.env.APP_PASS
+      }
+    }) 
+    const capitalisedName = account.username.split(" ") 
+    const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() + name.slice(1).toLowerCase())
+    const name = finalName.join("")
 
     const mailOptions = {
-      from: account.accounts.email,
-      to: adminEmails,
-      subject: `${account.accounts.firstName} ${account.accounts.lastName} requesting a leave`,
-      text: `
-        ${account.accounts.firstName} ${account.accounts.lastName} is requesting a leave.\n
-        Leave Name: ${leavename}\n
-        Reason: ${leavereason}\n
-        Duration: ${leavedays} days\n
-        From: ${leavestart}\n
-        To: ${leaveend} \n 
-        Returning on: ${returnDate}
+      from:account.email,
+      to:adminEmails ,
+      subject:"Requesting a leave",
+      text:`
+      ${name} is requesting a leave\n of ${leavedays}days\n starting from ${leavestart}\nand it ends on ${leaveend} \n. 
+      If the leave is approved ${name} will return to work on ${returnDate},
+      Click this link to activate to check leave status for ${name}
+      `
+    } 
 
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.status(201).json({
+    await transport.sendMail(mailOptions)
+    return  res.status(201).json({
       message: 'Leave request submitted successfully, and the admins will check it out.',
       leave: {
         ...newLeave.toJSON(),
@@ -133,8 +143,9 @@ const requestLeave = async (req, res) => {
       },
     });
   } catch (error) {
+    console.log("There was an error")
     console.error(error);
-    res.status(500).json({ error: 'An error occurred while requesting leave.' });
+ return   res.status(500).json({error:'An error occurred while requesting leave.' });
   }
 };
 
@@ -142,12 +153,15 @@ const approveLeave = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const leave = await Leaves.findByPk(id);
+    const leave = await Leaves.findByPk(id);  
+   
+  
 
     if (!leave) {
       return res.status(404).json({ error: 'Leave not found.' });
     }
-
+    const leaveOwner = await Account.findByPk(leave.userId) 
+    console.log("The leave owner is " , leaveOwner)
     if (leave.status !== 'pending') {
       return res.status(400).json({ error: 'Leave already processed.' });
     }
@@ -173,9 +187,24 @@ const approveLeave = async (req, res) => {
     leave.returningfromleave = returnDate;
     leave.status = 'approved';
     await leave.save();
-
-    res.status(200).json({
-      message: 'Leave approved successfully.',
+    
+    const transporter =nodemailer.createTransport({
+      service:"gmail", 
+      auth:{
+        user:process.env.APP_USER,
+        pass:process.env.APP_PASSWORD
+      }
+    }) 
+    console.log("The leave owner email is" , leaveOwner.email) 
+    const mailOptions={ 
+      from:"RIIO ADMIN",
+      to:leaveOwner.email , 
+      subject:"Leave status" ,
+      text:`Dear ${leaveOwner.username} we wanted to let you know that your leave has been updated to a status of ${leave.status}`
+    } 
+    transporter.sendMail(mailOptions)
+   return  res.status(200).json({
+      message: 'Leave approved successfully. and email sent to the reciepient',
       leave: {
         ...leave.toJSON(),
         returningfromleave: returnDate,
@@ -189,16 +218,19 @@ const approveLeave = async (req, res) => {
 
 const getLeaves = async (req, res) => {
   try {
-    const user = req.user;
-    const verifyUserExisist = await Account.findByPk(user);
+    const user = req.user
+    // console.log("The user is" , user)
+    const verifyUserExisist = await Account.findByPk(user); 
+    console.log("The user found id is  " , verifyUserExisist.username)
     if (!verifyUserExisist) {
       return res
         .status(404)
         .json({ status: 'failed', message: 'user not found' });
-    }
-    if (user.role === 'admin') {
+    } 
+
+    if (verifyUserExisist.role === 'admin') {
       const leaves = await Leaves.findAll({
-        order: [['createAt', 'DESC']],
+        order: [['createdAt', 'DESC']],
       });
     return  res.status(200).json({ status: 'success', leaves });
     } else { 
@@ -211,5 +243,31 @@ const getLeaves = async (req, res) => {
   } catch (error) {
     res.status(500).json({ status: 'failed', message: error.message });
   }
-};
-module.exports = { requestLeave, approveLeave, getLeaves};
+}; 
+
+
+const deleteYourLeave = async(req , res)=>{
+  try {
+    const user = req.user 
+    const findUser = await Account.findByPk(user)  
+    if(!findUser){
+      return res.status(400).json({status:"Failed" , message:"user not found"})
+    } 
+    const {id} = req.params 
+    const verifyId = await Leaves.findByPk(id)
+    if(!verifyId){
+      return res.status(400).json({status:"failed" , message:"The id is not found"})
+    } 
+    if(user === findUser.id){
+      await Leaves.destroy({where:{id:id}}) 
+      return res.status(200).json({status:"Leave deleted successfully"})
+    }else{
+      return res.status(400).json({status:"failed" , message:"Bad request"})
+    }
+    
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({status:"failed" , message:"error.message"})
+  }
+}
+module.exports = { requestLeave, approveLeave, getLeaves , deleteYourLeave};

@@ -266,9 +266,10 @@ const getLeaves = async (req, res) => {
     return  res.status(200).json({ status: 'success', leaves });
     } else { 
       
-      const leaves = await Leaves.findAll({where:{id:user}} ,{
-        order: [['createAt', 'DESC']],
-      }); 
+      const leaves = await Leaves.findAll({
+        where: { userId: user},
+        order: [['createdAt', 'DESC']], 
+    });; 
       return res.status(200).json({status:"success" , leaves})
     }
   } catch (error) {

@@ -7,7 +7,6 @@ const Account = require('../models/account');
 const login = async (req, res) => {
   console.log("hello this is before try")
   try {
-    
     const { email, password } = req.body;
     console.log("hello this bellow  req")
     const user = await Account.findOne({ where: { email } });

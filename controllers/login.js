@@ -32,7 +32,8 @@ const login = async (req, res) => {
       message: 'user loged in successfully',
       token: jwt.sign({ userId: user.id }, process.env.secret , {
         expiresIn: '24h',
-      }),
+      }), 
+      userRole:user.role
     }); 
 
   } catch (error) {

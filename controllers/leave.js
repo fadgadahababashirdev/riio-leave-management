@@ -144,68 +144,81 @@ const requestLeave = async (req, res) => {
 };
 
 
-  const updateLeaveStatus = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status } = req.body; 
-  
+
+
+const updateLeaveStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, leavename, leavestart, leaveend, leavereason, leaveDocument } = req.body;
+    const user = req.user; // Assuming middleware populates req.user with logged-in user details
+
+    // Verify the logged-in user
+    const verifyUser = await Account.findOne({ where: { id: user } });
+    if (!verifyUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    console.log("The verified user is:", verifyUser.role);
+
+    // Fetch the leave record
+    const leave = await Leaves.findByPk(id);
+    if (!leave) {
+      return res.status(404).json({ error: 'Leave not found.' });
+    }
+
+    console.log("Leave userId:", leave.userId, "VerifyUser ID:", verifyUser.id);
+
+    // Admin logic
+    if (verifyUser.role === 'admin') {
       if (!['approved', 'rejected'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status. Use "approved" or "rejected".' });
       }
-  
-      const leave = await Leaves.findByPk(id); 
-       
-      const userAccount = await Account.findOne({where:{id:leave.userId}}) 
-     
-  
-      if (!leave) {
-        return res.status(404).json({ error: 'Leave not found.' });
-      }
-  
+
       if (leave.status !== 'pending') {
         return res.status(400).json({ error: 'Leave already processed.' });
       }
-      
-   
+
       if (status === 'approved') {
-        const user = await Account.findByPk(leave.userId); 
-     
-        if (!user) {
-          return res.status(404).json({ error: 'User not found.' });
+        const leaveUser = await Account.findByPk(leave.userId);
+        if (!leaveUser) {
+          return res.status(404).json({ error: 'Leave user not found.' });
         }
-  
-        if (leave.leavedays > user.remainingleavedays) {
-          return res
-            .status(400)
-            .json({ error: 'User does not have enough leave days.' });
+
+        if (leave.leavedays > leaveUser.remainingleavedays) {
+          return res.status(400).json({ error: 'User does not have enough leave days.' });
         }
-  
-        user.consumeddays += leave.leavedays;
-        user.remainingleavedays -= leave.leavedays;
-        await user.save();
-  
+
+        // Update user's leave days
+        leaveUser.consumeddays += leave.leavedays;
+        leaveUser.remainingleavedays -= leave.leavedays;
+        await leaveUser.save();
+
+        // Set return date and update leave
         const returnDate = new Date(leave.leaveend);
         returnDate.setDate(returnDate.getDate() + 1);
-  
+
         leave.returningfromleave = returnDate;
         leave.status = 'approved';
-  
         await leave.save();
-        const transport = nodemailer.createTransport({
-          service:"gmail" , 
-          auth:{
-            user:process.env.APP_USER,
-            pass:process.env.APP_PASS
-          }
-        }) 
 
-        const mailOptions= {
-          from:process.env.APP_USER,
-          to:userAccount.email,
-          subject:"Leave Status",
-          text:"Hey your leave has been approved"
-        }  
-        await transport.sendMail(mailOptions)
+        // Send approval email
+        const transport = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.APP_USER,
+            pass: process.env.APP_PASS,
+          },
+        });
+
+        const mailOptions = {
+          from: process.env.APP_USER,
+          to: leaveUser.email,
+          subject: 'Leave Status',
+          text: 'Hey, your leave has been approved.',
+        };
+
+        await transport.sendMail(mailOptions);
+
         return res.status(200).json({
           message: 'Leave approved successfully, and email sent to the recipient.',
           leave: {
@@ -213,37 +226,70 @@ const requestLeave = async (req, res) => {
             returningfromleave: returnDate,
           },
         });
-      } else if (status === 'rejected') { 
-        const user = await Account.findByPk(leave.userId); 
-        console.log('the user in approved is ' , user.username)
+      } else if (status === 'rejected') {
         leave.status = 'rejected';
         await leave.save();
-        const transport = nodemailer.createTransport({
-          service:"gmail" , 
-          auth:{
-            user:process.env.APP_USER,
-            pass:process.env.APP_PASS
-          }
-        }) 
 
-        const mailOptions= {
-          from:process.env.APP_USER,
-          to:userAccount.email,
-          subject:"Leave Status",
-          text:"Hey your leave has been rejected"
-        }  
-        await transport.sendMail(mailOptions)
+        // Send rejection email
+        const transport = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.APP_USER,
+            pass: process.env.APP_PASS,
+          },
+        });
+
+        const mailOptions = {
+          from: process.env.APP_USER,
+          to: verifyUser.email,
+          subject: 'Leave Status',
+          text: 'Hey, your leave has been rejected.',
+        };
+
+        await transport.sendMail(mailOptions);
+
         return res.status(200).json({
           message: 'Leave rejected successfully, and email sent to the recipient.',
           leave: leave.toJSON(),
         });
       }
-    } catch (error) {
-      console.log("there was an error")
-      console.error(error);
-      res.status(500).json({ error: 'An error occurred while processing the leave.' });
     }
-  };
+
+    // Resident or staff logic
+    if (verifyUser.role === 'resident' || verifyUser.role === 'staff') {
+      if (parseInt(leave.userId, 10) !== parseInt(verifyUser.id, 10)) {
+        return res.status(403).json({ error: 'You are not authorized to update this leave.' });
+      }
+
+      if (status) {
+        return res.status(400).json({ error: 'Users cannot update the leave status.' });
+      }
+
+      // Update allowed fields
+      leave.leavename = leavename || leave.leavename;
+      leave.leavestart = leavestart || leave.leavestart;
+      leave.leaveend = leaveend || leave.leaveend;
+      leave.leavereason = leavereason || leave.leavereason;
+      leave.leaveDocument = leaveDocument || leave.leaveDocument;
+
+      await leave.save();
+
+      return res.status(200).json({
+        message: 'Leave details updated successfully.',
+        leave: leave.toJSON(),
+      });
+    }
+
+    // Unauthorized role
+    return res.status(403).json({ error: 'You are not authorized to perform this action.' });
+  } catch (error) {
+    console.error('Error updating leave:', error);
+    res.status(500).json({ error: 'An error occurred while updating the leave.' });
+  }
+};
+
+
+
   
 
 

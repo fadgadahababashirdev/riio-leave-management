@@ -30,7 +30,7 @@ module.exports = {
       leavereason: {
         type: Sequelize.STRING,
       },
-      leaveDocument: {
+      image: {
         type: Sequelize.STRING,
       },
       createdAt: {

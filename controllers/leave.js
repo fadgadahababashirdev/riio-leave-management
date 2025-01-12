@@ -50,7 +50,7 @@ console.log("the name is" , finalName.join(""))
 
 const requestLeave = async (req, res) => {
   try {
-    const { leavename, leavestart, leaveend, leavereason, leaveDocument } = req.body;
+    const { leavename, leavestart, leaveend, leavereason, image } = req.body;
     const userId = req.user;
 
     if (!userId) {
@@ -80,7 +80,7 @@ const requestLeave = async (req, res) => {
       leaveend:end,
       leavedays,
       leavereason,
-      leaveDocument, 
+      image, 
       returningfromleave:returnDate,
       userId:req.user,
       status:'pending',
@@ -116,7 +116,7 @@ const requestLeave = async (req, res) => {
     }) 
     const capitalisedName = account.username.split(" ") 
     const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() + name.slice(1).toLowerCase())
-    const name = finalName.join("")
+    const name = finalName.join(" ")
 
     const mailOptions = {
       from:account.email,
@@ -149,9 +149,9 @@ const requestLeave = async (req, res) => {
 const updateLeaveStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, leavename, leavestart, leaveend, leavereason, leaveDocument } = req.body;
+    const { status, leavename, leavestart, leaveend, leavereason} = req.body;
     const user = req.user; // Assuming middleware populates req.user with logged-in user details
-
+    const image = req.file ? req.file.path : null;
     // Verify the logged-in user
     const verifyUser = await Account.findOne({ where: { id: user } });
     if (!verifyUser) {
@@ -270,7 +270,7 @@ const updateLeaveStatus = async (req, res) => {
       leave.leavestart = leavestart || leave.leavestart;
       leave.leaveend = leaveend || leave.leaveend;
       leave.leavereason = leavereason || leave.leavereason;
-      leave.leaveDocument = leaveDocument || leave.leaveDocument;
+      leave.image = image || leave.image;
 
       await leave.save();
 
@@ -294,11 +294,12 @@ const updateLeaveStatus = async (req, res) => {
 
 
 const getLeaves = async (req, res) => {
+  console.log("hello world")
   try {
     const user = req.user
-    // console.log("The user is" , user)
+    console.log("The user is" , user)
     const verifyUserExisist = await Account.findByPk(user); 
-    console.log("The user found id is  " , verifyUserExisist.username)
+    console.log("The user found is  " , verifyUserExisist)
     if (!verifyUserExisist) {
       return res
         .status(404)
@@ -319,6 +320,7 @@ const getLeaves = async (req, res) => {
       return res.status(200).json({status:"success" , leaves})
     }
   } catch (error) {
+    console.log(error)
     res.status(500).json({ status: 'failed', message: error.message });
   }
 }; 

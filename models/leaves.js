@@ -29,7 +29,7 @@ const Leaves = sequelize.define('leaves', {
   leavereason: {
     type: Sequelize.STRING,
   },
-  leaveDocument: {
+  image: {
     type: Sequelize.STRING,
   },
   createdAt: {

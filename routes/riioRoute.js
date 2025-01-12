@@ -36,7 +36,7 @@ router.post('/reset-Password', resetPassword);
 
 // leaves 
  router.post("/leave" , authorization , requestLeave)
- router.put("/leave/:id" , authorization , updateLeaveStatus)
+ router.put("/leave/:id" , authorization , upload.single("image"),updateLeaveStatus)
  router.get("/leave" , authorization ,getLeaves) 
  router.delete("/leave/:id" , authorization , deleteYourLeave) 
 

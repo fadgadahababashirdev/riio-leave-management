@@ -154,6 +154,7 @@ const requestLeave = async (req, res) => {
     }
 
     const userAccount = await Account.findByPk(userId);
+    const username = userAccount.username
     if (!userAccount) {
       return res.status(404).json({ error: 'User account not found.'});
     }
@@ -213,7 +214,8 @@ const requestLeave = async (req, res) => {
       image:image,
       returningfromleave: returnDate,
       userId,
-      status: 'pending',
+      status: 'pending', 
+      username:username
     });
 
     // Notify admins
@@ -401,11 +403,6 @@ const updateLeaveStatus = async (req, res) => {
     res.status(500).json({ error: 'An error occurred while updating the leave.' });
   }
 };
-
-
-
-  
-
 
 const getLeaves = async (req, res) => {
   console.log("hello world")

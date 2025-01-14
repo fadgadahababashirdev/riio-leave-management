@@ -45,6 +45,9 @@ const Leaves = sequelize.define('leaves', {
     
   
   } ,
+  username:{
+    type:Sequelize.STRING
+  } ,
   updatedAt: {
     allowNull: false,
     type: Sequelize.DATE,

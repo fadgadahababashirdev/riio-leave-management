@@ -41,8 +41,11 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE,
       },
+      username:{
+        type:Sequelize.STRING
+      } ,
       status: {
-        type: Sequelize.ENUM('pending', 'approved' , 'rejected'),
+        type: Sequelize.ENUM('pending','approved','rejected'),
         defaultValue: 'pending',
       },
     });

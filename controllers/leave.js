@@ -424,7 +424,7 @@ const getLeaves = async (req, res) => {
       const leaves = await Leaves.findAll({
         order: [['createdAt', 'DESC']],
       });
-    return  res.status(200).json({ status: 'success', leaves });
+    return  res.status(200).json({ status:'success',leaves ,username:verifyUserExisist.username});
     } else { 
       
       const leaves = await Leaves.findAll({

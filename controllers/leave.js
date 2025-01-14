@@ -2,7 +2,8 @@ const Holidays = require('date-holidays');
 const Leaves = require('../models/leaves');
 const Account = require('../models/account');
 const nodemailer = require("nodemailer");
-const { text } = require('express');
+const { text } = require('express'); 
+const {Op} = require("sequelize")
 const hd = new Holidays('RW');
 require("dotenv").config()
 const calculateLeaveDays = (start, end) => { 
@@ -48,101 +49,214 @@ const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() +  name
 console.log("the name is" , finalName.join(""))
 
 
+//   try {
+//     const { leavename, leavestart, leaveend, leavereason, image } = req.body;
+//     const userId = req.user;
+
+//     if (!userId) {
+//       return res.status(400).json({ error: 'User not found' });
+//     }
+//     const existingLeave = await Leaves.findOne({
+//       where: { userId, status: 'pending' },
+//     });
+//     if (existingLeave) {
+//       return res.status(400).json({ error: 'You already have a pending leave request.' });
+//     }
+//     const start = new Date(leavestart);
+//     const end = new Date(leaveend);
+//     const leavedays = calculateLeaveDays(start, end);
+//     if (leavedays <= 0) {
+//       return res.status(400).json({ error: 'Invalid leave period. No working days found.' });
+//     }
+
+//     const returnDate = findNextValidReturnDate(end);
+//     const realDate = new Date(returnDate) 
+//     const formattedReturnDate = realDate.toISOString().split('T')[0];
+
+
+//     const newLeave = await Leaves.create({
+//       leavename,
+//       leavestart:start,
+//       leaveend:end,
+//       leavedays,
+//       leavereason,
+//       image, 
+//       returningfromleave:returnDate,
+//       userId:req.user,
+//       status:'pending',
+//     });
+   
+   
+//     const admins = await Account.findAll({ where: {role:'admin'}});
+
+//     if (!admins.length) {
+//       return res.status(400).json({ status: 'failed', message: 'No admins found' });
+//     }
+
+//     const adminEmails = admins.map((admin) => admin.email);
+
+//     const sendingEmail = req.user;
+//     if (!sendingEmail) {
+//       return res.status(400).json({ status: 'failed', message: 'User not found' });
+//     }
+
+//     const account = await Account.findOne({ where: {id:sendingEmail } }); 
+//     // console.log("The account email is" , account)
+//     if (!account) {
+//       return res.status(400).json({error:'User account not found.'});
+//     } 
+
+  
+//     const transport = nodemailer.createTransport({
+//       service:"gmail" ,
+//       auth:{
+//         user:process.env.APP_USER ,
+//         pass:process.env.APP_PASS
+//       }
+//     }) 
+//     const capitalisedName = account.username.split(" ") 
+//     const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() + name.slice(1).toLowerCase())
+//     const name = finalName.join(" ")
+
+//     const mailOptions = {
+//       from:account.email,
+//       to:adminEmails ,
+//       subject:"Requesting a leave",
+//       text:`
+//       ${name} is requesting a leave of ${leavedays} days starting from ${leavestart} and it ends on ${leaveend}. 
+//       If the leave is approved ${name} will return to work on ${returnDate},
+//       Click this link to activate to check leave status for ${name}
+//       `
+//     } 
+//     await transport.sendMail(mailOptions)
+//     return  res.status(201).json({
+//       message: 'Leave request submitted successfully, and the admins will check it out.',
+//       leave: {
+//         ...newLeave.toJSON(),
+//         returnDate,
+//       },
+//     });
+//   } catch (error) {
+//     console.log("There was an error")
+//     console.error(error);
+//  return   res.status(500).json({error:'An error occurred while requesting leave.' });
+//   }
+// };
+// new leave request 
+
 const requestLeave = async (req, res) => {
   try {
-    const { leavename, leavestart, leaveend, leavereason, image } = req.body;
+    const { leavename, leavestart, leaveend, leavereason} = req.body;
     const userId = req.user;
-
+    const image=req.file
     if (!userId) {
       return res.status(400).json({ error: 'User not found' });
     }
-    const existingLeave = await Leaves.findOne({
-      where: { userId, status: 'pending' },
-    });
-    if (existingLeave) {
-      return res.status(400).json({ error: 'You already have a pending leave request.' });
+
+    const userAccount = await Account.findByPk(userId);
+    if (!userAccount) {
+      return res.status(404).json({ error: 'User account not found.'});
     }
+
     const start = new Date(leavestart);
     const end = new Date(leaveend);
-    const leavedays = calculateLeaveDays(start, end);
-    if (leavedays <= 0) {
+    const leaveDays = calculateLeaveDays(start, end);
+
+    if (leaveDays <= 0) {
       return res.status(400).json({ error: 'Invalid leave period. No working days found.' });
     }
 
-    const returnDate = findNextValidReturnDate(end);
-    const realDate = new Date(returnDate) 
-    const formattedReturnDate = realDate.toISOString().split('T')[0];
+    // Check if the leave type affects annual leave
+    if (leavename === 'annual') {
+      const currentYear = start.getFullYear();
+      const currentMonth = start.getMonth();
+      const userLeaveHistory = await Leaves.findAll({
+        where: {
+          userId,
+          leavename: 'annual',
+          status: 'approved',
+          leavestart: { [Op.gte]: new Date(currentYear, 0, 1)}, // From start of the year
+        },
+      });
 
+      // Calculate used leave days for the current month and year
+      const monthlyUsedDays = userLeaveHistory
+        .filter((leave) => new Date(leave.leavestart).getMonth() === currentMonth)
+        .reduce((total, leave) => total + leave.leavedays, 0);
+
+      const yearlyUsedDays = userLeaveHistory.reduce((total, leave) => total + leave.leavedays, 0);
+
+      const maxYearlyDays = 12 * 1.5;
+      const maxMonthlyDays = 1.5;
+
+      if (monthlyUsedDays + leaveDays > maxMonthlyDays) {
+        return res.status(400).json({
+          error: `You can only take up to ${maxMonthlyDays} days of leave in a month.`,
+        });
+      }
+
+      if (yearlyUsedDays + leaveDays > maxYearlyDays) {
+        return res.status(400).json({
+          error: `You have exceeded your annual leave limit of ${maxYearlyDays} days.`,
+        });
+      }
+    }
+
+    const returnDate = findNextValidReturnDate(end);
 
     const newLeave = await Leaves.create({
       leavename,
-      leavestart:start,
-      leaveend:end,
-      leavedays,
+      leavestart: start,
+      leaveend: end,
+      leavedays: leaveDays,
       leavereason,
-      image, 
-      returningfromleave:returnDate,
-      userId:req.user,
-      status:'pending',
+      image:image,
+      returningfromleave: returnDate,
+      userId,
+      status: 'pending',
     });
-   
-   
-    const admins = await Account.findAll({ where: {role:'admin'}});
 
+    // Notify admins
+    const admins = await Account.findAll({where:{role:'admin'}});
     if (!admins.length) {
-      return res.status(400).json({ status: 'failed', message: 'No admins found' });
+      return res.status(400).json({status:'failed', message: 'No admins found' });
     }
 
     const adminEmails = admins.map((admin) => admin.email);
-
-    const sendingEmail = req.user;
-    if (!sendingEmail) {
-      return res.status(400).json({ status: 'failed', message: 'User not found' });
-    }
-
-    const account = await Account.findOne({ where: {id:sendingEmail } }); 
-    // console.log("The account email is" , account)
-    if (!account) {
-      return res.status(400).json({error:'User account not found.'});
-    } 
-
-  
     const transport = nodemailer.createTransport({
-      service:"gmail" ,
-      auth:{
-        user:process.env.APP_USER ,
-        pass:process.env.APP_PASS
-      }
-    }) 
-    const capitalisedName = account.username.split(" ") 
-    const finalName = capitalisedName.map(name=>name.charAt(0).toUpperCase() + name.slice(1).toLowerCase())
-    const name = finalName.join(" ")
+      service: 'gmail',
+      auth: {
+        user: process.env.APP_USER,
+        pass: process.env.APP_PASS,
+      },
+    });
+
+    const capitalisedName = userAccount.username
+      .split(' ')
+      .map((name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase())
+      .join(' ');
 
     const mailOptions = {
-      from:account.email,
-      to:adminEmails ,
-      subject:"Requesting a leave",
-      text:`
-      ${name} is requesting a leave of ${leavedays} days starting from ${leavestart} and it ends on ${leaveend}. 
-      If the leave is approved ${name} will return to work on ${returnDate},
-      Click this link to activate to check leave status for ${name}
-      `
-    } 
-    await transport.sendMail(mailOptions)
-    return  res.status(201).json({
-      message: 'Leave request submitted successfully, and the admins will check it out.',
+      from: userAccount.email,
+      to: adminEmails,
+      subject: 'Requesting a Leave',
+      text: `${capitalisedName} is requesting a leave of ${leaveDays} days starting from ${leavestart} and ending on ${leaveend}.`,
+    };
+
+    await transport.sendMail(mailOptions);
+
+    return res.status(201).json({
+      message: 'Leave request submitted successfully.',
       leave: {
         ...newLeave.toJSON(),
         returnDate,
       },
     });
   } catch (error) {
-    console.log("There was an error")
-    console.error(error);
- return   res.status(500).json({error:'An error occurred while requesting leave.' });
+    console.error('Error requesting leave:', error);
+    return res.status(500).json({ error: 'An error occurred while requesting leave.' });
   }
 };
-
 
 
 
@@ -150,7 +264,7 @@ const updateLeaveStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, leavename, leavestart, leaveend, leavereason} = req.body;
-    const user = req.user; // Assuming middleware populates req.user with logged-in user details
+    const user = req.user;
     const image = req.file ? req.file.path : null;
     // Verify the logged-in user
     const verifyUser = await Account.findOne({ where: { id: user } });

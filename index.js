@@ -4,7 +4,7 @@ const express = require('express');
 const router = require('./routes/riioRoute');
 const morgan = require("morgan")
 const cors = require("cors")
-const app = express();
+export const app = express();
 
 const PORT = process.env.APP_PORT || 1200
 app.use(express.json());

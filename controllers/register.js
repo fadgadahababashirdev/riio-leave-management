@@ -1,16 +1,16 @@
-const Account = require('../models/account');
+const Account = require("../models/account");
 
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
-require('dotenv').config();
+require("dotenv").config();
 // register a new user
 
 const register = async (req, res) => {
   try {
     const { email, username, role, status } = req.body;
-    console.log('The body is ', req.body);
-    const resettoken = crypto.randomBytes(32).toString('hex');
+    console.log("The body is ", req.body);
+    const resettoken = crypto.randomBytes(32).toString("hex");
     const resettokenexpires = Date.now() + 3600000;
 
     const user = await Account.findOne({
@@ -20,7 +20,7 @@ const register = async (req, res) => {
     if (user) {
       return res
         .status(400)
-        .json({ status: 'Failed ', message: 'user arleady exisists' });
+        .json({ status: "Failed ", message: "user arleady exisists" });
     }
     await Account.create({
       email,
@@ -32,88 +32,83 @@ const register = async (req, res) => {
     });
 
     const transport = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
         pass: process.env.APP_PASS,
         user: process.env.APP_USER,
       },
     });
-   
+
     const mailOptions = {
       from: process.env.APP_USER,
       to: email,
-      subject: 'Activating account',
+      subject: "Activating account",
       text: `please click this link below to set your password ${process.env.FRONT_END_URL}/create-password?token=${resettoken}`,
     };
     transport.sendMail(mailOptions);
 
     res.status(201).json({
-      status: 'success',
+      status: "success",
       message:
-        'account registered successfully , and an email has been sent to set password',
+        "account registered successfully , and an email has been sent to set password",
     });
   } catch (error) {
-    console.log('the error is', error);
-    res.status(500).json({ status: 'Failed', message:error});
+    console.log("the error is", error);
+    res.status(500).json({ status: "Failed", message: error });
   }
 };
 
 // get all users
 const users = async (req, res) => {
   try {
-    const user = req.user;
-    const verifyUser = await Account.findOne({ where: { id: user } });
-    if (!verifyUser) {
-      return res.status(400).json({ status: 'user does not exist' });
-    }
+    
+    
 
-    if (verifyUser.role === 'admin') {
-      const { page = 1 } = req.query;
-      const limit = 50;
-      const offset = (page - 1) * limit;
+    const { page = 1 } = req.query;
+    const limit = 50;
+    const offset = (page - 1) * limit;
 
-      const { rows: users, count: totalUsers } = await Account.findAndCountAll({
-        order: [['createdAt', 'DESC']],
+    const { rows: users, count: totalUsers } = await Account.findAndCountAll({
+      order: [["createdAt", "DESC"]],
 
-        limit,
-        offset,
-      });
+      limit,
+      offset,
+    });
 
-      // Calculate total pages
-      const totalPages = Math.ceil(totalUsers / limit);
+    // Calculate total pages
+    const totalPages = Math.ceil(totalUsers / limit);
 
-      return res.status(200).json({
-        status: 'success',
-        users,
-        pagination: {
-          totalUsers,
-          totalPages,
-          currentPage: parseInt(page),
-          pageSize: limit,
-        },
-      });
-    } else {
-      return res.status(200).json({ message: [] });
-    }
+    return res.status(200).json({
+      status: "success",
+      users,
+      pagination: {
+        totalUsers,
+        totalPages,
+        currentPage: parseInt(page),
+        pageSize: limit,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ status: 'failed', message: error.message });
+    res.status(500).json({ status: "failed", message: error.message });
   }
 };
 
 // get single user
 const user = async (req, res) => {
   try {
-    const {id} = req.params 
-    const isIdFound = await Account.findByPk(id)
-    if(!isIdFound){
-      return res.status(400).json({status:"failed" , message:"id not found"})
+    const { id } = req.params;
+    const isIdFound = await Account.findByPk(id);
+    if (!isIdFound) {
+      return res
+        .status(400)
+        .json({ status: "failed", message: "id not found" });
     }
-    const user = await Account.findOne({where:{id:id}})
-    return res.status(200).json({status:"success" , user:user})
+    const user = await Account.findOne({ where: { id: id } });
+    return res.status(200).json({ status: "success", user: user });
   } catch (error) {
-    res.status(500).json({status:"failed" , message:error.message})
+    res.status(500).json({ status: "failed", message: error.message });
   }
-}
+};
 
 // get single user
 
@@ -126,14 +121,14 @@ const updateUser = async (req, res) => {
     if (!id) {
       return res
         .status(404)
-        .json({ status: 'failed', message: 'id not found' });
+        .json({ status: "failed", message: "id not found" });
     }
 
     const user = await Account.findByPk(id);
     if (!user) {
       return res
         .status(404)
-        .json({ status: 'failed', message: 'user does not exisist' });
+        .json({ status: "failed", message: "user does not exisist" });
     }
 
     const updatingData = {
@@ -146,9 +141,9 @@ const updateUser = async (req, res) => {
     await Account.update(updatingData, { where: { id: id } });
     return res
       .status(200)
-      .json({ status: 'success', message: 'user data updated successfully' });
+      .json({ status: "success", message: "user data updated successfully" });
   } catch (error) {
-    res.status(500).json({ status: 'Failed', message: error.message });
+    res.status(500).json({ status: "Failed", message: error.message });
   }
 };
 
@@ -159,27 +154,27 @@ const deleteUser = async (req, res) => {
     if (!findUSer) {
       return res
         .status(400)
-        .json({ status: 'failed', message: 'id not found' });
+        .json({ status: "failed", message: "id not found" });
     }
 
     if (!id) {
       return res
         .status(404)
-        .json({ status: 'failed', message: 'id not found' });
+        .json({ status: "failed", message: "id not found" });
     }
     if (!findUSer) {
       return res
         .status(400)
-        .json({ status: 'failed', message: 'user does not exisist' });
+        .json({ status: "failed", message: "user does not exisist" });
     }
 
     await Account.destroy({ where: { id: id } });
     res
       .status(200)
-      .json({ status: 'Failed', message: 'user deleted successfully' });
+      .json({ status: "Failed", message: "user deleted successfully" });
   } catch (error) {
-    console.log('The error is ', error);
-    res.status(500).json({ status: 'failed', message: error.message });
+    console.log("The error is ", error);
+    res.status(500).json({ status: "failed", message: error.message });
   }
 };
 

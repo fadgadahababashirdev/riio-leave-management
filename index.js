@@ -31,6 +31,6 @@ app.get("*" , (req , res)=>{
 })  
 
 
-app.listen(process.env.APP_PORT, () => console.log(`app is running on http://localhost:${PORT}`));
+app.listen(process.env.APP_PORT,()=> console.log(`app is running on http://localhost:${PORT}`));
 
-
+module.exports = app

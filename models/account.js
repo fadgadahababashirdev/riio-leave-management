@@ -68,11 +68,6 @@ const Account = sequelize.define(
   },
   { tableName: 'accounts' }
 );
-// Account.associate = (models)=>{
-//   Account.hasMany(models.Leaves ,{
-//     foreignKey:"userId" ,
-//     as:"leaves"
-//   })
-// }
+
 
 module.exports = Account;

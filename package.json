@@ -5,12 +5,13 @@
   "version": "1.0.0",
   
   "main": "index.js",
+  
   "type": "commonjs",
+  
   "scripts": {
   
     
   "migrate": "npx sequelize-cli db:migrate",
-
   
     
   "test": "jest",

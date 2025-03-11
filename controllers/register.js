@@ -61,9 +61,6 @@ const register = async (req, res) => {
 // get all users
 const users = async (req, res) => {
   try {
-    
-    
-
     const { page = 1 } = req.query;
     const limit = 50;
     const offset = (page - 1) * limit;
@@ -79,13 +76,13 @@ const users = async (req, res) => {
     const totalPages = Math.ceil(totalUsers / limit);
 
     return res.status(200).json({
-      status: "success",
+      status:"success",
       users,
       pagination: {
         totalUsers,
         totalPages,
-        currentPage: parseInt(page),
-        pageSize: limit,
+        currentPage:parseInt(page),
+        pageSize:limit,
       },
     });
   } catch (error) {

@@ -202,8 +202,8 @@ const requestLeave = async (req, res) => {
       const startOfYear = new Date(currentYear, 0, 1);
       const now = new Date();
       
-      // Calculate months of employment in the current year
-      const employmentStartDate = new Date(user.createdAt);
+      // Use employmentStartDate if available, otherwise fall back to createdAt
+      const employmentStartDate = user.employmentStartDate || new Date(user.createdAt);
       const employmentStartYear = employmentStartDate.getFullYear();
       
       // Determine the start date for leave accrual calculation
@@ -212,7 +212,7 @@ const requestLeave = async (req, res) => {
         // Employee started before this year, use start of year
         accrualStartDate = startOfYear;
       } else {
-        // Employee started this year, use their start date
+        // Employee started this year, use their actual employment start date
         accrualStartDate = employmentStartDate;
       }
       
@@ -236,18 +236,24 @@ const requestLeave = async (req, res) => {
         },
       });
 
+      // Calculate leaves used this year from approved leave requests
       const usedLeaveDays = usedLeaves.reduce(
         (total, leave) => total + leave.leavedays,
         0
       );
+      
+      // Add any pre-recorded consumed days from before system implementation
+      const manuallyRecordedDays = user.consumeddays || 0;
+      const totalConsumedDays = usedLeaveDays + manuallyRecordedDays;
 
-      const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
+      // Calculate remaining leave days
+      const remainingLeaveDays = accruedLeaveDays - totalConsumedDays;
 
       if (leavedays > remainingLeaveDays) {
         return res.status(400).json({
-          message:`Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
+          message: `Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
             1
-          )} days).`,
+          )} days). Based on your employment date of ${employmentStartDate.toLocaleDateString()}, you've accrued ${accruedLeaveDays.toFixed(1)} days and used ${totalConsumedDays} days this year.`,
         });
       }
 
@@ -308,7 +314,107 @@ const requestLeave = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+// update employee leave info 
+const updateEmployeeLeaveInfo = async (req, res) => {
+  const { userId, employmentStartDate, consumeddays } = req.body;
   
+  try {
+    // Check if user is admin
+    const adminUser = req.user;  // Assuming you have authentication middleware
+    if (adminUser.role !== 'admin') {
+      return res.status(403).json({ message: "Only admins can update employee leave information." });
+    }
+    
+    const user = await Account.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    
+    // Update the user with employment start date and consumed days
+    const updates = {};
+    
+    if (employmentStartDate) {
+      const parsedDate = new Date(employmentStartDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid employment start date format." });
+      }
+      updates.employmentStartDate = parsedDate;
+    }
+    
+    if (consumeddays !== undefined) {
+      if (isNaN(consumeddays) || consumeddays < 0) {
+        return res.status(400).json({ message: "Consumed days must be a non-negative number." });
+      }
+      updates.consumeddays = consumeddays;
+    }
+    
+    await user.update(updates);
+    
+    // Recalculate remaining leave days
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1);
+    const now = new Date();
+    
+    const employmentStartDate = user.employmentStartDate || new Date(user.createdAt);
+    const employmentStartYear = employmentStartDate.getFullYear();
+    
+    let accrualStartDate;
+    if (employmentStartYear < currentYear) {
+      accrualStartDate = startOfYear;
+    } else {
+      accrualStartDate = employmentStartDate;
+    }
+    
+    const monthsDiff = (now.getFullYear() - accrualStartDate.getFullYear()) * 12 + 
+                       (now.getMonth() - accrualStartDate.getMonth());
+    const monthsEmployed = Math.max(0, monthsDiff + 1);
+    const accruedLeaveDays = monthsEmployed * 1.5;
+
+    const usedLeaves = await Leaves.findAll({
+      where: {
+        userId: user.id,
+        status: "approved",
+        leavestart: {
+          [Op.gte]: startOfYear,
+        },
+      },
+    });
+
+    const usedLeaveDays = usedLeaves.reduce(
+      (total, leave) => total + leave.leavedays,
+      0
+    );
+    
+    const manuallyRecordedDays = user.consumeddays || 0;
+    const totalConsumedDays = usedLeaveDays + manuallyRecordedDays;
+    const remainingLeaveDays = accruedLeaveDays - totalConsumedDays;
+    
+    // Update the user's remaining leave days
+    await user.update({
+      remainingleavedays: Math.max(0, remainingLeaveDays)
+    });
+    
+    res.status(200).json({
+      message: "Employee leave information updated successfully.",
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        employmentStartDate: user.employmentStartDate,
+        consumeddays: user.consumeddays,
+        accruedLeaveDays: accruedLeaveDays.toFixed(1),
+        usedLeaveDays: totalConsumedDays,
+        remainingLeaveDays: remainingLeaveDays.toFixed(1)
+      }
+    });
+  } catch (error) {
+    console.error("Error updating employee leave info:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+
+module.exports = { requestLeave };
 // Approve or reject leave request
 const updateLeaveStatus = async (req, res) => {
   const { id } = req.params;

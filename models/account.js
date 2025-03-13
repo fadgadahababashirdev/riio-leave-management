@@ -13,13 +13,17 @@ const Account = sequelize.define(
     username: {
       type: Sequelize.STRING,
       allowNull: false,
+    }, 
+    employmentStartDate: {
+      type: Sequelize.DATE,
+      allowNull: true,
     },
     email: {
       type: Sequelize.STRING,
       allowNull: false,
     },
     role: {
-      type: Sequelize.ENUM('admin', 'resident', 'staff'),
+      type: Sequelize.ENUM('admin','resident','staff'),
       allowNull: false,
     },
     password: {

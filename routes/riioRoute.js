@@ -25,7 +25,7 @@ router.get('/users',authorization, authorizeAdmin ,users);
 // update a user
 router.put('/update/:id', authorization, upload.single('image'), updateUser);
 // getting single user
-router.get('/user/:id', authorization, user);
+router.get('/user/:id', authorization,authorizeAdmin , user);
 //
 router.delete('/user/:id', authorization, authorizeAdmin ,deleteUser); 
 
@@ -36,8 +36,8 @@ router.post('/create-password',createPassword);
 router.post('/forgot-password',forgotPassword);
 router.post('/reset-Password',resetPassword);    
 router.post('/create-leave',authorization ,requestLeave); 
-router.get('/leaves',authorization ,allLeaves);   
-router.delete('/deleteLeave/:id',authorization,deleteLeave);  
+router.get('/leaves',authorization ,authorizeAdmin ,allLeaves);   
+router.delete('/deleteLeave/:id',authorization,authorizeAdmin ,deleteLeave);  
 router.get('/leave/:id',authorization,getLeave);  
 router.put("/updateLeave/:id" ,authorization , authorizeAdmin , updateLeaveStatus )
 

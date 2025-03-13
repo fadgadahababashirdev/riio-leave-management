@@ -3,6 +3,148 @@ const Account = require("../models/account")
 const Leaves = require("../models/leaves") 
 const nodemailer = require("nodemailer");
 require("dotenv").config()
+const requestLeavee = async (req, res) => {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.APP_USER,
+      pass: process.env.APP_PASS,
+    },
+  });
+
+  const { userId, leavename, leavestart, leaveend, leavereason } = req.body;
+
+  try {
+    const pendingRequest = await Leaves.findOne({
+      where: { userId, status: "pending" },
+    });
+
+    if (pendingRequest) {
+      return res
+        .status(400)
+        .json({ message: "You already have a pending leave request." });
+    }
+
+    const user = await Account.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    let leavedays = 0;
+    let startDate, endDate, returningDate;
+
+    if (leavename === "annual") {
+      startDate = new Date(leavestart);
+      endDate = new Date(leaveend);
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format." });
+      }
+
+      if (startDate > endDate) {
+        return res
+          .status(400)
+          .json({ message: "Leave start date must be before end date." });
+      }
+
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          leavedays++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      const currentYear = new Date().getFullYear();
+      const startOfYear = new Date(currentYear, 0, 1);
+      const now = new Date();
+      const monthsElapsed = now.getMonth() + 1;
+      const accruedLeaveDays = monthsElapsed * 1.5;
+
+      const usedLeaves = await Leaves.findAll({
+        where: {
+          userId,
+          status: "approved",
+          leavestart: {
+            [Op.gte]: startOfYear,
+          },
+        },
+      });
+
+      const usedLeaveDays = usedLeaves.reduce(
+        (total, leave) => total + leave.leavedays,
+        0
+      );
+
+      const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
+
+      if (leavedays > remainingLeaveDays) {
+        return res.status(400).json({
+          message: `Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
+            1
+          )} days).`,
+        });
+      }
+
+      returningDate = new Date(endDate);
+      returningDate.setDate(returningDate.getDate() + 1);
+
+      while (returningDate.getDay() === 0 || returningDate.getDay() === 6) {
+        returningDate.setDate(returningDate.getDate() + 1);
+      }
+    }
+
+    const leaveRequest = await Leaves.create({
+      userId,
+      leavename,
+      leavedays,
+      leavestart: leavename ==="annual" ? leavestart : null,
+      leaveend: leavename ==="annual" ? leaveend : null,
+      returningfromleave: leavename ==="annual" ? returningDate : null,
+      leavereason,
+      status: "pending",
+      username: user.username,
+    });
+
+    const admins = await Account.findAll({ where: { role: "admin" } });
+    const adminEmails = admins.map((admin) => admin.email);
+
+    let emailText = `${user.username} (${user.email}) is requesting ${leavename} leave.\n\nReason: ${leavereason}`;
+
+    if (leavename === "annual") {
+      emailText += ` for ${leavedays} days from ${new Date(
+        leavestart
+      ).toLocaleDateString()} to ${new Date(leaveend).toLocaleDateString()}.\n\nReturning on: ${returningDate.toLocaleDateString()}`;
+    }
+
+    emailText += "\n\nPlease review and approve.";
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: adminEmails,
+      subject: "Leave Request",
+      text: emailText,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Error sending email:", error);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(201).json({
+      message: "Leave request created successfully.",
+      leaveRequest,
+    });
+  } catch (error) {
+    console.error("Error creating leave request:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 const requestLeave = async (req, res) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -34,7 +176,6 @@ const requestLeave = async (req, res) => {
     let startDate, endDate, returningDate;
 
     if (leavename === "annual") {
-      // Fix date parsing issues by standardizing date format
       startDate = new Date(leavestart);
       endDate = new Date(leaveend);
 
@@ -48,7 +189,6 @@ const requestLeave = async (req, res) => {
           .json({ message: "Leave start date must be before end date." });
       }
 
-      // Count weekdays between start and end dates
       let currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         const dayOfWeek = currentDate.getDay();
@@ -58,22 +198,54 @@ const requestLeave = async (req, res) => {
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      // Use the user's actual remaining leave days from the database
-      // instead of calculating it based on months
-      const remainingLeaveDays = user.remainingleavedays || 0;
+      const currentYear = new Date().getFullYear();
+      const startOfYear = new Date(currentYear, 0, 1);
+      const now = new Date();
+      
+      // Calculate months of employment in the current year
+      const employmentStartDate = new Date(user.createdAt);
+      const employmentStartYear = employmentStartDate.getFullYear();
+      
+      // Determine the start date for leave accrual calculation
+      let accrualStartDate;
+      if (employmentStartYear < currentYear) {
+        // Employee started before this year, use start of year
+        accrualStartDate = startOfYear;
+      } else {
+        // Employee started this year, use their start date
+        accrualStartDate = employmentStartDate;
+      }
+      
+      // Calculate months employed in the current year
+      const monthsDiff = (now.getFullYear() - accrualStartDate.getFullYear()) * 12 + 
+                         (now.getMonth() - accrualStartDate.getMonth());
+      
+      // Round up to include current month
+      const monthsEmployed = Math.max(0, monthsDiff + 1);
+      
+      // Calculate accrued leave at 1.5 days per month
+      const accruedLeaveDays = monthsEmployed * 1.5;
 
-      console.log({
-        userId,
-        username: user.username,
-        requestedDays: leavedays,
-        availableDays: remainingLeaveDays,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+      const usedLeaves = await Leaves.findAll({
+        where: {
+          userId,
+          status: "approved",
+          leavestart: {
+            [Op.gte]: startOfYear,
+          },
+        },
       });
+
+      const usedLeaveDays = usedLeaves.reduce(
+        (total, leave) => total + leave.leavedays,
+        0
+      );
+
+      const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
 
       if (leavedays > remainingLeaveDays) {
         return res.status(400).json({
-          message: `Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
+          message:`Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
             1
           )} days).`,
         });
@@ -136,6 +308,7 @@ const requestLeave = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+  
 // Approve or reject leave request
 const updateLeaveStatus = async (req, res) => {
   const { id } = req.params;

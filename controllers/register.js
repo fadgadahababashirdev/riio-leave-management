@@ -112,7 +112,7 @@ const user = async (req, res) => {
 // update the user
 const updateUser = async (req, res) => {
   try {
-    const { username, status, role , remainingleavedays } = req.body;
+    const { username,status,role,remainingleavedays,consumeddays } = req.body;
     const image = req.file ? req.file.path : null;
     const { id } = req.params;
     if (!id) {
@@ -133,7 +133,8 @@ const updateUser = async (req, res) => {
       role: role || user.role,
       image: image || user.image,
       status: status || user.status, 
-      remainingleavedays:remainingleavedays ||user.remainingleavedays
+      remainingleavedays:remainingleavedays ||user.remainingleavedays ,
+      consumeddays:consumeddays ||user.consumeddays
     };
 
     await Account.update(updatingData, { where: { id: id } });

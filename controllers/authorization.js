@@ -31,11 +31,12 @@ const authorizeAdmin = async(req, res, next) => {
 
  try {
   const userRole = await Account.findOne({where:{id:req.user}}) 
-
- } catch (error) {
-  if (req.user.users.role !== "admin") {
+   console.log("The requesting role is " , userRole.role)
+  if (userRole.role !== "admin") {
     return res.status(403).json({ message: "Access denied."});
   }
+ } catch (error) {
+   res.status(500).json({status:"failed" , message:error.message})
  }
 
   next();

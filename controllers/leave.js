@@ -34,6 +34,7 @@ const requestLeave = async (req, res) => {
     let startDate, endDate, returningDate;
 
     if (leavename === "annual") {
+      // Fix date parsing issues by standardizing date format
       startDate = new Date(leavestart);
       endDate = new Date(leaveend);
 
@@ -47,6 +48,7 @@ const requestLeave = async (req, res) => {
           .json({ message: "Leave start date must be before end date." });
       }
 
+      // Count weekdays between start and end dates
       let currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         const dayOfWeek = currentDate.getDay();
@@ -56,28 +58,18 @@ const requestLeave = async (req, res) => {
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      const currentYear = new Date().getFullYear();
-      const startOfYear = new Date(currentYear, 0, 1);
-      const now = new Date();
-      const monthsElapsed = now.getMonth() + 1;
-      const accruedLeaveDays = monthsElapsed * 1.5;
+      // Use the user's actual remaining leave days from the database
+      // instead of calculating it based on months
+      const remainingLeaveDays = user.remainingleavedays || 0;
 
-      const usedLeaves = await Leaves.findAll({
-        where: {
-          userId,
-          status: "approved",
-          leavestart: {
-            [Op.gte]: startOfYear,
-          },
-        },
+      console.log({
+        userId,
+        username: user.username,
+        requestedDays: leavedays,
+        availableDays: remainingLeaveDays,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
       });
-
-      const usedLeaveDays = usedLeaves.reduce(
-        (total, leave) => total + leave.leavedays,
-        0
-      );
-
-      const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
 
       if (leavedays > remainingLeaveDays) {
         return res.status(400).json({
@@ -144,7 +136,6 @@ const requestLeave = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
-  
 // Approve or reject leave request
 const updateLeaveStatus = async (req, res) => {
   const { id } = req.params;

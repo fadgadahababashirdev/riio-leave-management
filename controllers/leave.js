@@ -11,128 +11,122 @@ const requestLeave = async (req, res) => {
       pass: process.env.APP_PASS,
     },
   });
-  
+
   const { userId, leavename, leavestart, leaveend, leavereason } = req.body;
 
   try {
-    // Check if the user has a pending request
     const pendingRequest = await Leaves.findOne({
-      where: { userId, status: 'pending' },
+      where: { userId, status: "pending" },
     });
 
     if (pendingRequest) {
-      return res.status(400).json({ message: 'You already have a pending leave request.' });
+      return res
+        .status(400)
+        .json({ message: "You already have a pending leave request." });
     }
 
-    // Get the user
     const user = await Account.findByPk(userId);
-
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: "User not found." });
     }
 
-    // Calculate the number of days between leavestart and leaveend
-    const startDate = new Date(leavestart);
-    const endDate = new Date(leaveend);
-    
-    // Ensure valid dates
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({ message: 'Invalid date format.' });
-    }
-    
-    if (startDate > endDate) {
-      return res.status(400).json({ message: 'Leave start date must be before end date.' });
-    }
-
-    // Calculate working days (excluding weekends)
     let leavedays = 0;
-    let currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      // Skip weekends (0 = Sunday, 6 = Saturday)
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        leavedays++;
+    let startDate, endDate, returningDate;
+
+    if (leavename === "annual") {
+      startDate = new Date(leavestart);
+      endDate = new Date(leaveend);
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format." });
       }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
 
-    // Calculate accrued leave allowance (1.5 days per month)
-    const currentYear = new Date().getFullYear();
-    const startOfYear = new Date(currentYear, 0, 1); // January 1st of current year
-    
-    // FIXED: Calculate months elapsed correctly
-    // Current date in March 2025 (as mentioned in your date)
-    const now = new Date();
-    
-    // Calculate full months elapsed (Jan, Feb, Mar = 3 months)
-    // Note: getMonth() is 0-indexed, so March is 2
-    const currentMonth = now.getMonth(); // 0-indexed (0 = Jan, 1 = Feb, 2 = Mar)
-    const monthsElapsed = currentMonth + 1; // Add 1 to get number of months (Jan = 1, Feb = 2, Mar = 3)
-    
-    // Accrue 1.5 days per month
-    const accruedLeaveDays = monthsElapsed * 1.5;
+      if (startDate > endDate) {
+        return res
+          .status(400)
+          .json({ message: "Leave start date must be before end date." });
+      }
 
-    // Get used leave days
-    const usedLeaves = await Leaves.findAll({
-      where: { 
-        userId,
-        status: 'approved',
-        leavestart: {
-          [Op.gte]: startOfYear
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          leavedays++;
         }
+        currentDate.setDate(currentDate.getDate() + 1);
       }
-    });
-    
-    const usedLeaveDays = usedLeaves.reduce((total, leave) => total + leave.leavedays, 0);
-    
-    // Calculate remaining leave balance
-    const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
 
-    // Check if user has enough leave days
-    if (leavedays > remainingLeaveDays) {
-      return res.status(400).json({ 
-        message: `Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(1)} days).`
+      const currentYear = new Date().getFullYear();
+      const startOfYear = new Date(currentYear, 0, 1);
+      const now = new Date();
+      const monthsElapsed = now.getMonth() + 1;
+      const accruedLeaveDays = monthsElapsed * 1.5;
+
+      const usedLeaves = await Leaves.findAll({
+        where: {
+          userId,
+          status: "approved",
+          leavestart: {
+            [Op.gte]: startOfYear,
+          },
+        },
       });
-    }
 
-    // Calculate return date (next working day after leave ends)
-    let returningDate = new Date(endDate);
-    returningDate.setDate(returningDate.getDate() + 1);
-    
-    // Ensure return date is not on a weekend
-    while (returningDate.getDay() === 0 || returningDate.getDay() === 6) {
+      const usedLeaveDays = usedLeaves.reduce(
+        (total, leave) => total + leave.leavedays,
+        0
+      );
+
+      const remainingLeaveDays = accruedLeaveDays - usedLeaveDays;
+
+      if (leavedays > remainingLeaveDays) {
+        return res.status(400).json({
+          message: `Requested leave (${leavedays} days) exceeds your available balance (${remainingLeaveDays.toFixed(
+            1
+          )} days).`,
+        });
+      }
+
+      returningDate = new Date(endDate);
       returningDate.setDate(returningDate.getDate() + 1);
+
+      while (returningDate.getDay() === 0 || returningDate.getDay() === 6) {
+        returningDate.setDate(returningDate.getDate() + 1);
+      }
     }
 
-    // Create the leave request
     const leaveRequest = await Leaves.create({
       userId,
       leavename,
       leavedays,
-      leavestart,
-      leaveend,
-      returningfromleave: returningDate, // Set the returning date
+      leavestart: leavename === "annual" ? leavestart : null,
+      leaveend: leavename === "annual" ? leaveend : null,
+      returningfromleave: leavename === "annual" ? returningDate : null,
       leavereason,
-      status: 'pending',
+      status: "pending",
       username: user.username,
     });
 
-    // Send email to admin
     const admins = await Account.findAll({ where: { role: "admin" } });
-    const adminEmails = admins.map(admin => admin.email);
+    const adminEmails = admins.map((admin) => admin.email);
 
-    // Email content
+    let emailText = `${user.username} (${user.email}) is requesting ${leavename} leave.\n\nReason: ${leavereason}`;
+
+    if (leavename === "annual") {
+      emailText += ` for ${leavedays} days from ${new Date(
+        leavestart
+      ).toLocaleDateString()} to ${new Date(leaveend).toLocaleDateString()}.\n\nReturning on: ${returningDate.toLocaleDateString()}`;
+    }
+
+    emailText += "\n\nPlease review and approve.";
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: adminEmails,
       subject: "Leave Request",
-      text: `${user.username} (${user.email}) is requesting ${leavename} leave for ${leavedays} days from ${new Date(leavestart).toLocaleDateString()} to ${new Date(leaveend).toLocaleDateString()}.\n\nReturning on: ${returningDate.toLocaleDateString()}\n\nReason: ${leavereason}\n\nPlease review and approve.`,
+      text: emailText,
     };
 
-    // Send email
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.error("Error sending email:", error);
@@ -141,18 +135,13 @@ const requestLeave = async (req, res) => {
       }
     });
 
-    res.status(201).json({ 
-      message: 'Leave request created successfully.', 
+    res.status(201).json({
+      message: "Leave request created successfully.",
       leaveRequest,
-      leaveBalance: {
-        accrued: accruedLeaveDays,
-        used: usedLeaveDays,
-        remaining: remainingLeaveDays
-      }
     });
   } catch (error) {
-    console.error('Error creating leave request:', error);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error("Error creating leave request:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 };
   
@@ -293,5 +282,60 @@ const getLeave = async (req, res) => {
     console.log(error)
     return res.status(500).json({ message: error.message });
   }
+}; 
+
+// leave proof 
+const updateLeaveWithProof = async (req, res) => {
+  const { id } = req.params;
+  const { image } = req.file.path;
+  try {
+    const leaveRequest = await Leaves.findByPk(id);
+    if (!leaveRequest) {
+      return res.status(404).json({ message: "Leave request not found." });
+    }
+
+    if (leaveRequest.status !== "approved") {
+      return res
+        .status(400)
+        .json({ message: "Only approved leaves can be updated with proof." });
+    }
+
+    leaveRequest.image = image;
+    await leaveRequest.save();
+
+    const admins = await Account.findAll({ where: { role: "admin" } });
+    const adminEmails = admins.map((admin) => admin.email);
+
+    const mailOptions = {
+      from:process.env.EMAIL_USER,
+      to:adminEmails,
+      subject:"Leave Proof Submission",
+      text:`${leaveRequest.username} has submitted proof for their ${leaveRequest.leavename} leave.\n\nCheck the system for details.`,
+    };
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.APP_USER,
+        pass: process.env.APP_PASS,
+      },
+    });
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Error sending email:", error);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(200).json({
+      message: "Leave proof updated successfully.",
+      leaveRequest,
+    });
+  } catch (error) {
+    console.error("Error updating leave proof:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
 };
-module.exports = {requestLeave,deleteLeave,allLeaves , getLeave , updateLeaveStatus}
+module.exports = {requestLeave,deleteLeave,allLeaves , getLeave , updateLeaveStatus , updateLeaveWithProof}

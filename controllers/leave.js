@@ -316,15 +316,9 @@ const requestLeave = async (req, res) => {
 };
 // update employee leave info 
 const updateEmployeeLeaveInfo = async (req, res) => {
-  const { userId, employmentStartDate, consumeddays } = req.body;
+  const { userId, employmentStartDate: newEmploymentStartDate, consumeddays } = req.body;
   
   try {
-    // Check if user is admin
-    const adminUser = req.user;  // Assuming you have authentication middleware
-    if (adminUser.role !== 'admin') {
-      return res.status(403).json({ message: "Only admins can update employee leave information." });
-    }
-    
     const user = await Account.findByPk(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -333,8 +327,8 @@ const updateEmployeeLeaveInfo = async (req, res) => {
     // Update the user with employment start date and consumed days
     const updates = {};
     
-    if (employmentStartDate) {
-      const parsedDate = new Date(employmentStartDate);
+    if (newEmploymentStartDate) {
+      const parsedDate = new Date(newEmploymentStartDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ message: "Invalid employment start date format." });
       }
@@ -355,21 +349,21 @@ const updateEmployeeLeaveInfo = async (req, res) => {
     const startOfYear = new Date(currentYear, 0, 1);
     const now = new Date();
     
-    const employmentStartDate = user.employmentStartDate || new Date(user.createdAt);
-    const employmentStartYear = employmentStartDate.getFullYear();
+    const userEmploymentStartDate = user.employmentStartDate || new Date(user.createdAt);
+    const employmentStartYear = userEmploymentStartDate.getFullYear();
     
     let accrualStartDate;
     if (employmentStartYear < currentYear) {
       accrualStartDate = startOfYear;
     } else {
-      accrualStartDate = employmentStartDate;
+      accrualStartDate = userEmploymentStartDate;
     }
     
-    const monthsDiff = (now.getFullYear() - accrualStartDate.getFullYear()) * 12 + 
+    const monthsDiff = (now.getFullYear() - accrualStartDate.getFullYear()) * 12 +
                        (now.getMonth() - accrualStartDate.getMonth());
     const monthsEmployed = Math.max(0, monthsDiff + 1);
     const accruedLeaveDays = monthsEmployed * 1.5;
-
+    
     const usedLeaves = await Leaves.findAll({
       where: {
         userId: user.id,
@@ -379,7 +373,7 @@ const updateEmployeeLeaveInfo = async (req, res) => {
         },
       },
     });
-
+    
     const usedLeaveDays = usedLeaves.reduce(
       (total, leave) => total + leave.leavedays,
       0
@@ -389,9 +383,9 @@ const updateEmployeeLeaveInfo = async (req, res) => {
     const totalConsumedDays = usedLeaveDays + manuallyRecordedDays;
     const remainingLeaveDays = accruedLeaveDays - totalConsumedDays;
     
-    // Update the user's remaining leave days
+    // Update the user's remaining leave days - Convert to integer as the database expects
     await user.update({
-      remainingleavedays: Math.max(0, remainingLeaveDays)
+      remainingleavedays: Math.floor(Math.max(0, remainingLeaveDays))
     });
     
     res.status(200).json({
@@ -412,7 +406,6 @@ const updateEmployeeLeaveInfo = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
-
 
 module.exports = { requestLeave };
 // Approve or reject leave request
@@ -608,4 +601,4 @@ const updateLeaveWithProof = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
-module.exports = {requestLeave,deleteLeave,allLeaves , getLeave , updateLeaveStatus , updateLeaveWithProof}
+module.exports = {requestLeave,deleteLeave,allLeaves , getLeave , updateLeaveStatus , updateLeaveWithProof , updateEmployeeLeaveInfo}

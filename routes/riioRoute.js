@@ -25,7 +25,7 @@ router.get('/users',authorization, authorizeAdmin ,users);
 // update a user
 router.put('/update/:id', authorization, upload.single('image'), updateUser);
 // getting single user
-router.get('/user/:id', authorization,authorizeAdmin , user);
+router.get('/user/:id', authorization, user);
 //
 router.delete('/user/:id', authorization, authorizeAdmin ,deleteUser); 
 

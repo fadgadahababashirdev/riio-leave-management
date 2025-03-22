@@ -103,20 +103,12 @@ const user = async (req, res) => {
         .status(400)
         .json({ status: "failed", message: "id not found" });
     } 
-    if (accounts.role === "staff" && id===req.user) {
-      const user = await Account.findOne({ where: { id: req.user } });  
-      return res.status(200).json({ status: "success", user: user });
-    } else if (accounts.role === "admin") { 
+   
       const user = await Account.findOne({ where: { id: id } }); 
       return res.status(200).json({ status: "success", user: user });
-    } else {
-      return res.status(400).json({ message: [] });
-    }
-    
+    } 
 
-    // console.log("the user is " , useri.role)
-    
-  } catch (error) {
+ catch (error) {
     res.status(500).json({ status: "failed", message: error.message });
   }
 };

@@ -36,7 +36,7 @@ router.post('/create-password',createPassword);
 router.post('/forgot-password',forgotPassword);
 router.post('/reset-Password',resetPassword);    
 router.post('/create-leave',authorization,requestLeave); 
-router.get('/leaves',authorization,authorizeAdmin,allLeaves);   
+router.get('/leaves',authorization,allLeaves);   
 router.delete('/deleteLeave/:id',authorization,authorizeAdmin ,deleteLeave);  
 router.get('/leave/:id',authorization,getLeave);  
 router.put("/updateLeave/:id",authorization,authorizeAdmin,updateLeaveStatus) 

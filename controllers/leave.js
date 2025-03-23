@@ -534,17 +534,16 @@ const allLeaves = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "User ID is missing from request" });
     }
-
     // Find user's role
     const findRole = await Account.findOne({ where: { id } });
     if (!findRole) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({message:"User not found" });
     }
 
-    console.log("User role:", findRole.role);  // Debugging role
+    console.log("User role:", findRole.role);//Debugging role
 
     // Determine the filter condition based on role
-    const whereCondition = findRole.role !== "admin" ? { userId: id } : {};
+    const whereCondition = findRole.role !=="admin" ? { userId: id } : {};
 
     // Fetch leaves
     const leaves = await Leaves.findAll({
@@ -577,7 +576,7 @@ const getLeave = async (req, res) => {
 };
 
 //  delete leave
-const deleteLeave = async (req, res) => {
+const deleteLeave= async(req, res)=> {
   try {
     const { id } = req.params;
     const leave = await Leaves.findByPk(id);
@@ -586,8 +585,7 @@ const deleteLeave = async (req, res) => {
         .status(404)
         .json({ status: "Failed", message: "Leave not found" });
     }
-
-    await leave.destroy({ where: { id: id } });
+    await leave.destroy({ where:{id:id}});
     return res
       .status(200)
       .json({ status: "success", message: "Leave deleted successfully" });
@@ -600,13 +598,14 @@ const deleteLeave = async (req, res) => {
 // leave proof
 const updateLeaveWithProof = async (req, res) => {
   const { id } = req.params;
-  const { image } = req.file.path;
+  const  image  = req.file.path;
   try {
     const leaveRequest = await Leaves.findByPk(id);
     if (!leaveRequest) {
       return res.status(404).json({ message: "Leave request not found." });
     }
-
+  
+    console.log("The leave request is " , leaveRequest)
     if (leaveRequest.status !== "approved") {
       return res
         .status(400)

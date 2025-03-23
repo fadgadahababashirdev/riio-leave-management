@@ -13,7 +13,7 @@ const upload = require('../helpers/multer');
 const createPassword = require('../controllers/create-password');
 const forgotPassword = require('../controllers/forgot-password');
 const resetPassword = require('../controllers/reset-password');
-const { requestLeave, deleteLeave, allLeaves, getLeave, updateLeaveStatus, updateEmployeeLeaveInfo } = require('../controllers/leave');
+const { requestLeave, deleteLeave, allLeaves, getLeave, updateLeaveStatus, updateEmployeeLeaveInfo, updateLeaveWithProof } = require('../controllers/leave');
 
 
 
@@ -39,7 +39,8 @@ router.post('/create-leave',authorization,requestLeave);
 router.get('/leaves',authorization,allLeaves);   
 router.delete('/deleteLeave/:id',authorization,authorizeAdmin ,deleteLeave);  
 router.get('/leave/:id',authorization,getLeave);  
-router.put("/updateLeave/:id",authorization,authorizeAdmin,updateLeaveStatus) 
+router.put("/updateLeave/:id",authorization , authorizeAdmin,updateLeaveStatus) 
+router.put("/updateleavewithproof/:id" , authorization, upload.single("image") ,updateLeaveWithProof)
 router.put("/update-employee-leave-info/:id" , authorization , authorizeAdmin , updateEmployeeLeaveInfo)
 
 // create Leave 
